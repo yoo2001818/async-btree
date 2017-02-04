@@ -30,7 +30,13 @@ describe('Node', () => {
       node = new Node([1, 5], [new Node([2, 3, 4])]);
     });
     it('should split the node', () => {
-      node.split(0, 2);
+      expect(node.split(0, 2).inspect()).toBe(`
+        - - 2
+        - 3
+        - - 4
+        - 1
+        - 5
+      `.replace(/ {8}/g, '').trim());
     });
   });
 });

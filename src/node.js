@@ -50,7 +50,6 @@ export default class Node {
     for (let i = this.keys.length; i > pos; --i) {
       this.keys[i] = this.keys[i - 1];
     }
-    console.log(this);
 
     // Create right node, by copying data from the child.
     let right = new Node(child.keys.slice(size),
@@ -66,7 +65,6 @@ export default class Node {
     this.children[pos + 1] = right;
     this.keys[pos] = center;
 
-    console.log(this);
     return this;
   }
 }
