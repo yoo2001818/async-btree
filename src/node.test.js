@@ -24,6 +24,24 @@ describe('Node', () => {
       `.replace(/ {8}/g, '').trim());
     });
   });
+  describe('#traverse', () => {
+    let node;
+    beforeEach(() => {
+      node = new Node([3, 5], [
+        new Node([1, 2]),
+        new Node([4]),
+        new Node([8], [new Node([6, 7]), new Node([9])]),
+      ]);
+    });
+    it('should traverse the tree in-order', () => {
+      let i = 0;
+      node.traverse(v => {
+        i++;
+        expect(v).toBe(i);
+      });
+      expect(i).toBe(9);
+    });
+  });
   describe('#@@iterator', () => {
     let node;
     beforeEach(() => {
