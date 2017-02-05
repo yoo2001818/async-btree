@@ -30,18 +30,23 @@ export default class Node {
     return output;
   }
   search(key: any, comparator: (a: any, b: any) => Number) {
-    // TODO We could perform binary search; but first let's use linear
-    // search for now.
-    for (let i = 0; i < this.keys.length; ++i) {
-      let compared = comparator(this.keys[i], key);
-      if (compared === 0) return this.keys[i];
-      else if (compared < 0) {
-        let child = this.children[i];
-        if (child) return child.search(key, comparator);
-        else return null;
+    // Since ES6 supports tail call optimization, it's designed to use TCO,
+    // however, since B-tree's depth is not that deep, so it won't matter
+    // at all.
+    let high = this.keys.length - 1;
+    let low = 0;
+    do {
+      let mid = (high + low) >> 1;
+      let compared = comparator(this.keys[mid], key);
+      if (compared === 0) {
+        return this.keys[mid];
+      } else if (compared < 0) {
+        low = mid + 1;
+      } else {
+        high = mid - 1;
       }
-    }
-    let child = this.children[this.children.length - 1];
+    } while (high >= low);
+    let child = this.children[low];
     if (child) return child.search(key, comparator);
     else return null;
   }
