@@ -29,6 +29,22 @@ export default class Node {
     }
     return output;
   }
+  search(key: any, comparator: (a: any, b: any) => Number) {
+    // TODO We could perform binary search; but first let's use linear
+    // search for now.
+    for (let i = 0; i < this.keys.length; ++i) {
+      let compared = comparator(this.keys[i], key);
+      if (compared === 0) return this.keys[i];
+      else if (compared < 0) {
+        let child = this.children[i];
+        if (child) return child.search(key, comparator);
+        else return null;
+      }
+    }
+    let child = this.children[this.children.length - 1];
+    if (child) return child.search(key, comparator);
+    else return null;
+  }
   split(pos: Number = 0, size: Number = 2): Node {
     // Split works by slicing the children and putting the splited nodes
     // in right place.

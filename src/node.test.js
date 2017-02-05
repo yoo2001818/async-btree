@@ -24,6 +24,26 @@ describe('Node', () => {
       `.replace(/ {8}/g, '').trim());
     });
   });
+  describe('#search', () => {
+    let node, comparator;
+    beforeEach(() => {
+      node = new Node([3, 5], [
+        new Node([1, 2], [new Node([0])]),
+        new Node([4]),
+        new Node([8], [new Node([6, 7]), new Node([9])]),
+      ]);
+      comparator = (a, b) => a - b;
+    });
+    it('should search the key', () => {
+      expect(node.search(4, comparator)).toBe(4);
+      expect(node.search(3, comparator)).toBe(3);
+      expect(node.search(1, comparator)).toBe(1);
+      expect(node.search(0, comparator)).toBe(0);
+    });
+    it('should return null if not found', () => {
+      expect(node.search(53, comparator)).toBe(null);
+    });
+  });
   describe('#split', () => {
     let node;
     beforeEach(() => {
