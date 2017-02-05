@@ -50,6 +50,22 @@ export default class Node {
     if (child) return child.search(key, comparator);
     else return null;
   }
+  traverse(callback: Function) {
+    let i;
+    for (i = 0; i < this.keys.length; ++i) {
+      if (this.children[i] != null) this.children[i].traverse(callback);
+      callback(this.keys[i]);
+    }
+    if (this.children[i] != null) this.children[i].traverse(callback);
+  }
+  *[Symbol.iterator]() {
+    let i;
+    for (i = 0; i < this.keys.length; ++i) {
+      if (this.children[i] != null) yield * this.children[i];
+      yield this.keys[i];
+    }
+    if (this.children[i] != null) yield * this.children[i];
+  }
   split(pos: Number = 0, size: Number = 2): Node {
     // Split works by slicing the children and putting the splited nodes
     // in right place.

@@ -24,6 +24,19 @@ describe('Node', () => {
       `.replace(/ {8}/g, '').trim());
     });
   });
+  describe('#@@iterator', () => {
+    let node;
+    beforeEach(() => {
+      node = new Node([3, 5], [
+        new Node([1, 2]),
+        new Node([4]),
+        new Node([8], [new Node([6, 7]), new Node([9])]),
+      ]);
+    });
+    it('should traverse the tree in-order', () => {
+      expect([...node]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
+  });
   describe('#search', () => {
     let node, comparator;
     beforeEach(() => {
