@@ -54,14 +54,13 @@ export default class Node {
     // Create right node, by copying data from the child.
     let right = new Node(child.keys.slice(size),
       child.children.slice(size + 1));
-    // Create left node. This could be done using mutation, too.
-    let left = new Node(child.keys.slice(0, size - 1),
-      child.children.slice(0, size));
     // Fetch the center key...
     let center = child.keys[size - 1];
+    // Alter left node to resize the length.
+    child.keys.length = size - 1;
+    child.children.length = size;
 
     // And put them into the parent.
-    this.children[pos] = left;
     this.children[pos + 1] = right;
     this.keys[pos] = center;
 
