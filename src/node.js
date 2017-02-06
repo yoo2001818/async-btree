@@ -29,7 +29,7 @@ export default class Node {
     }
     return output;
   }
-  search(key: any, comparator: (a: any, b: any) => Number) {
+  search(key: any, comparator: (a: any, b: any) => number) {
     // Since ES6 supports tail call optimization, it's designed to use TCO,
     // however, since B-tree's depth is not that deep, so it won't matter
     // at all.
@@ -66,7 +66,7 @@ export default class Node {
     }
     if (this.children[i] != null) yield * this.children[i];
   }
-  split(pos: Number = 0, size: Number = 2): Node {
+  split(pos: number = 0, size: number = 2): Node {
     // Split works by slicing the children and putting the splited nodes
     // in right place.
     // A---+---B
@@ -102,5 +102,45 @@ export default class Node {
     this.keys[pos] = center;
 
     return this;
+  }
+  insert(key: any, comparator: (a: any, b: any) => number, size: number = 2,
+    isRoot: boolean = false
+  ): void | Node {
+    if (isRoot && this.keys.length === size * 2 - 1) {
+      // Create new node, then separate it.
+      let newRoot = new Node([], [this]);
+      newRoot.split(0, size);
+      newRoot.insert(key, comparator, size);
+      return newRoot;
+    }
+    if (this.children.length === 0) {
+      // If leaf node, put the key in the right place, while pushing the other
+      // ones.
+      let i;
+      for (i = this.keys.length;
+        i >= 1 && comparator(this.keys[i - 1], key) > 0; --i
+      ) {
+        this.keys[i] = this.keys[i - 1];
+      }
+      this.keys[i] = key;
+      // We're done here.
+      return this;
+    } else {
+      // If middle node, Find right offset and insert to there.
+      // TODO It could do binary search in here too, but we'll change that
+      // later.
+      let i;
+      for (i = this.keys.length;
+        i >= 1 && comparator(this.keys[i - 1], key) > 0; --i
+      );
+      let child = this.children[i];
+      if (child.keys.length === size * 2 - 1) {
+        child.split(i, size);
+        if (comparator(this.keys[i], key) < 0) child = this.children[i + 1];
+      }
+      if (!isRoot) return child.insert(key, comparator, size);
+      child.insert(key, comparator, size);
+      return this;
+    }
   }
 }

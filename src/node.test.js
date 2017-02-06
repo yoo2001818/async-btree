@@ -92,5 +92,13 @@ describe('Node', () => {
         - 5
       `.replace(/ {8}/g, '').trim());
     });
+    it('should split the node if only one children is available', () => {
+      node = new Node([], [new Node([2, 3, 4])]);
+      expect(node.split(0, 2).inspect()).toBe(`
+        - - 2
+        - 3
+        - - 4
+      `.replace(/ {8}/g, '').trim());
+    });
   });
 });
