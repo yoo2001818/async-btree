@@ -128,12 +128,19 @@ export default class Node {
       return this;
     } else {
       // If middle node, Find right offset and insert to there.
-      // TODO It could do binary search in here too, but we'll change that
-      // later.
-      let i;
-      for (i = this.keys.length;
-        i >= 1 && comparator(this.keys[i - 1], key) > 0; --i
-      );
+      // This uses binary search to find the offset.
+      let high = this.keys.length - 1;
+      let low = 0;
+      do {
+        let mid = (high + low) >> 1;
+        let compared = comparator(this.keys[mid], key);
+        if (compared < 0) {
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      } while (high >= low);
+      let i = low;
       let child = this.children[i];
       if (child.keys.length === size * 2 - 1) {
         this.split(i, size);

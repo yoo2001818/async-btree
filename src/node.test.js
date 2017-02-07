@@ -122,14 +122,19 @@ describe('Node', () => {
     it('should sort randomized array to 0..99', () => {
       let arr = [];
       let answer;
-      for (let i = 0; i < 10000; ++i) {
+      for (let i = 0; i < 100; ++i) {
         arr.push(i);
       }
       answer = arr.slice();
-      for (let i = 0; i < 10000; ++i) {
-        let pos = arr.length * Math.random() | 0;
-        node = node.insert(arr[pos], comparator, 2, true);
-        arr.splice(pos, 1);
+      // Use simple shuffle algorithm
+      for (let i = 99; i > 0; --i) {
+        let j = Math.random() * i | 0;
+        let tmp = arr[j];
+        arr[j] = arr[i];
+        arr[i] = tmp;
+      }
+      for (let i = 0; i < 100; ++i) {
+        node = node.insert(i, comparator, 2, true);
       }
       expect([...node]).toEqual(answer);
     });
