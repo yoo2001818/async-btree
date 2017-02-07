@@ -101,4 +101,37 @@ describe('Node', () => {
       `.replace(/ {8}/g, '').trim());
     });
   });
+  describe('#insert', () => {
+    let node, comparator;
+    beforeEach(() => {
+      node = new Node();
+      comparator = (a, b) => a - b;
+    });
+    it('should return current root node', () => {
+      expect(node.insert(1, comparator, 2, true)).toBe(node);
+    });
+    it('should return new root node', () => {
+      node.keys = [1, 2, 3];
+      let newRoot = node.insert(4, comparator, 2, true);
+      expect(newRoot.children[0]).toBe(node);
+    });
+    it('should work on empty root', () => {
+      node.insert(1, comparator, 2, true);
+      expect([...node]).toEqual([1]);
+    });
+    it('should sort randomized array to 0..99', () => {
+      let arr = [];
+      let answer;
+      for (let i = 0; i < 10000; ++i) {
+        arr.push(i);
+      }
+      answer = arr.slice();
+      for (let i = 0; i < 10000; ++i) {
+        let pos = arr.length * Math.random() | 0;
+        node = node.insert(arr[pos], comparator, 2, true);
+        arr.splice(pos, 1);
+      }
+      expect([...node]).toEqual(answer);
+    });
+  });
 });

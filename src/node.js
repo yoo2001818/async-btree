@@ -90,12 +90,12 @@ export default class Node {
 
     // Create right node, by copying data from the child.
     let right = new Node(child.keys.slice(size),
-      child.children.slice(size + 1));
+      child.children.slice(size));
     // Fetch the center key...
     let center = child.keys[size - 1];
     // Alter left node to resize the length.
     child.keys.length = size - 1;
-    child.children.length = size;
+    child.children.length = child.children.length && size;
 
     // And put them into the parent.
     this.children[pos + 1] = right;
@@ -113,6 +113,7 @@ export default class Node {
       newRoot.insert(key, comparator, size);
       return newRoot;
     }
+    // console.log(this);
     if (this.children.length === 0) {
       // If leaf node, put the key in the right place, while pushing the other
       // ones.
@@ -135,7 +136,7 @@ export default class Node {
       );
       let child = this.children[i];
       if (child.keys.length === size * 2 - 1) {
-        child.split(i, size);
+        this.split(i, size);
         if (comparator(this.keys[i], key) < 0) child = this.children[i + 1];
       }
       if (!isRoot) return child.insert(key, comparator, size);
