@@ -66,6 +66,18 @@ export default class Node {
     }
     if (this.children[i] != null) yield * this.children[i];
   }
+  size(): Number {
+    // Returns the total size of the tree. This operation is expensive -
+    // it has to iterate all the array O(n). TODO Perhaps we could do caching?
+    return this.children.reduce((prev, current) => prev + current.size(), 0) +
+      this.keys.length;
+  }
+  height(level: number = 1): Number {
+    // Returns the max height of the tree. This operation is expensive -
+    // but it'd be for debugging purposes, so it won't be used anyway.
+    return this.children.reduce((prev, current) =>
+      Math.max(prev, current.height(level + 1)), level);
+  }
   split(pos: number = 0, size: number = 2): Node {
     // Split works by slicing the children and putting the splited nodes
     // in right place.
@@ -113,7 +125,6 @@ export default class Node {
       newRoot.insert(key, comparator, size);
       return newRoot;
     }
-    // console.log(this);
     if (this.children.length === 0) {
       // If leaf node, put the key in the right place, while pushing the other
       // ones.

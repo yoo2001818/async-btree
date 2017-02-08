@@ -24,6 +24,30 @@ describe('Node', () => {
       `.replace(/ {8}/g, '').trim());
     });
   });
+  describe('#size', () => {
+    it('should return right size', () => {
+      expect(new Node([3, 5], [
+        new Node([1, 2]),
+        new Node([4]),
+        new Node([8], [new Node([6, 7]), new Node([9])]),
+      ]).size()).toBe(9);
+    });
+    it('should return 0 for empty node', () => {
+      expect(new Node().size()).toBe(0);
+    });
+  });
+  describe('#height', () => {
+    it('should return right height', () => {
+      expect(new Node([3, 5], [
+        new Node([1, 2]),
+        new Node([4]),
+        new Node([8], [new Node([6, 7]), new Node([9])]),
+      ]).height()).toBe(3);
+    });
+    it('should return 1 for empty node', () => {
+      expect(new Node().height()).toBe(1);
+    });
+  });
   describe('#traverse', () => {
     let node;
     beforeEach(() => {
