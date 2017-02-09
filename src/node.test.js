@@ -24,6 +24,12 @@ describe('Node', () => {
       `.replace(/ {8}/g, '').trim());
     });
   });
+  describe('#fromArray', () => {
+    it('should return generated tree', () => {
+      expect([...Node.fromArray([1, 2, 3, 4, 5, 6, 7, 8],
+        (a, b) => a - b)]).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    });
+  });
   describe('#size', () => {
     it('should return right size', () => {
       expect(new Node([3, 5], [
@@ -77,6 +83,26 @@ describe('Node', () => {
     });
     it('should traverse the tree in-order', () => {
       expect([...node]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
+  });
+  describe('#locate', () => {
+    let node, comparator;
+    beforeEach(() => {
+      node = new Node([3, 5, 10, 15, 22, 500], [
+        new Node([1, 2], [new Node([0])]),
+        new Node([4]),
+        new Node([8], [new Node([6, 7]), new Node([9])]),
+      ]);
+      comparator = (a, b) => a - b;
+    });
+    it('should locate the position of exact node', () => {
+      expect(node.locate(5, comparator)).toEqual([1, true]);
+      expect(node.locate(22, comparator)).toEqual([4, true]);
+    });
+    it('should locate the position of middle node', () => {
+      expect(node.locate(1, comparator)).toEqual([0, false]);
+      expect(node.locate(4, comparator)).toEqual([1, false]);
+      expect(node.locate(6000, comparator)).toEqual([6, false]);
     });
   });
   describe('#search', () => {

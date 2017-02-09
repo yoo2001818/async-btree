@@ -7,6 +7,16 @@ export default class Node {
     this.keys = keys;
     this.children = children;
   }
+  static fromArray(array: Array,
+    comparator: (a: any, b: any) => number, size: number = 2
+  ): Node {
+    // Builds a tree from the array.
+    let rootNode = new Node();
+    array.forEach(v => {
+      rootNode = rootNode.insert(v, comparator, size, true);
+    });
+    return rootNode;
+  }
   inspect(depth = 0): String {
     let output = '';
     let i;
@@ -29,7 +39,10 @@ export default class Node {
     }
     return output;
   }
-  search(key: any, comparator: (a: any, b: any) => number) {
+  // Locate the position of certain value. This returns the position that
+  // (should) contain the node, and whether if the exact match was found.
+  locate(key: any, comparator: (a: any, b: any) => number
+  ): void | [number, boolean] {
     // Since ES6 supports tail call optimization, it's designed to use TCO,
     // however, since B-tree's depth is not that deep, so it won't matter
     // at all.
@@ -39,16 +52,29 @@ export default class Node {
       let mid = (high + low) >> 1;
       let compared = comparator(this.keys[mid], key);
       if (compared === 0) {
-        return this.keys[mid];
+        return [mid, true];
       } else if (compared < 0) {
         low = mid + 1;
       } else {
         high = mid - 1;
       }
     } while (high >= low);
-    let child = this.children[low];
-    if (child) return child.search(key, comparator);
+    return [low, false];
+  }
+  // Search and return the position and the containing node, recursively.
+  searchNode(key: any, comparator: (a: any, b: any) => number
+  ): void | [Node, number] {
+    let [position, exact] = this.locate(key, comparator);
+    if (exact) return [this, position];
+    let child = this.children[position];
+    if (child) return child.searchNode(key, comparator);
     else return null;
+  }
+  search(key: any, comparator: (a: any, b: any) => number): any {
+    let output = this.searchNode(key, comparator);
+    if (output == null) return null;
+    let [node, pos] = output;
+    return node.keys[pos];
   }
   traverse(callback: Function) {
     let i;
@@ -117,7 +143,7 @@ export default class Node {
   }
   insert(key: any, comparator: (a: any, b: any) => number, size: number = 2,
     isRoot: boolean = false
-  ): void | Node {
+  ): Node {
     if (isRoot && this.keys.length === size * 2 - 1) {
       // Create new node, then separate it.
       let newRoot = new Node([], [this]);
