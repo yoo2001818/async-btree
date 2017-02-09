@@ -196,7 +196,7 @@ describe('Node', () => {
         arr[i] = tmp;
       }
       for (let i = 0; i < 100; ++i) {
-        node = node.insert(i, comparator, 2, true);
+        node = node.insert(arr[i], comparator, 2, true);
       }
       expect([...node]).toEqual(answer);
     });
