@@ -270,7 +270,30 @@ export default class Node {
       // 'most closest to the key value' key in the node.
       // If both sibling nodes don't have insufficient keys, merge sibling nodes
       // to one, while deleteing the key in the process.
-
+      let leftNode = this.children[position - 1];
+      let rightNode = this.children[position];
+      if (leftNode && leftNode.keys.length >= size) {
+        // Steal biggest node in the left node.
+        let biggestNode = leftNode.biggestNode();
+        let biggest = biggestNode.keys.pop();
+        this.keys[position] = biggest;
+      } else if (rightNode && rightNode.keys.length >= size) {
+        // Steal smallest node in the right node.
+        let smallestNode = rightNode.smallestNode();
+        let smallest = smallestNode.keys.shift();
+        this.keys[position] = smallest;
+      } else if (leftNode && rightNode) {
+        // Merge left and right node.
+        let leftSize = leftNode.keys.length;
+        rightNode.keys.forEach(v => leftNode.keys.push(v));
+        rightNode.children.forEach((v, k) => {
+          leftNode.children[leftSize + k + 1] = v;
+        });
+        this.keys.splice(position, 1);
+        this.children.splice(position, 1);
+      } else {
+        throw new Error('Left and right node is missing while removing');
+      }
     }
   }
 }
