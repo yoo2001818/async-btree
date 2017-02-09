@@ -54,6 +54,18 @@ describe('Node', () => {
       expect(new Node().height()).toBe(1);
     });
   });
+  describe('#smallest', () => {
+    it('should return smallest key on the tree', () => {
+      let node = Node.fromArray([1, 2, 3, 4, 5, 6, 7, 8], (a, b) => a - b);
+      expect(node.smallest()).toBe(1);
+    });
+  });
+  describe('#biggest', () => {
+    it('should return biggest key on the tree', () => {
+      let node = Node.fromArray([1, 2, 3, 4, 5, 6, 7, 8], (a, b) => a - b);
+      expect(node.biggest()).toBe(8);
+    });
+  });
   describe('#traverse', () => {
     let node;
     beforeEach(() => {

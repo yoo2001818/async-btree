@@ -39,6 +39,9 @@ export default class Node {
     }
     return output;
   }
+  isLeaf(): boolean {
+    return this.children.length === 0;
+  }
   // Locate the position of certain value. This returns the position that
   // (should) contain the node, and whether if the exact match was found.
   locate(key: any, comparator: (a: any, b: any) => number
@@ -104,6 +107,26 @@ export default class Node {
     return this.children.reduce((prev, current) =>
       Math.max(prev, current.height(level + 1)), level);
   }
+  smallestNode(): Node {
+    // Returns smallest node of the tree.
+    let smallestChild = this.children[0];
+    if (smallestChild) return smallestChild.smallestNode();
+    return this;
+  }
+  smallest(): any {
+    let node = this.smallestNode();
+    return node.keys[0];
+  }
+  biggestNode(): Node {
+    // Returns the position of biggest node of the tree.
+    let biggestChild = this.children[this.keys.length];
+    if (biggestChild) return biggestChild.biggestNode();
+    return this;
+  }
+  biggest(): any {
+    let node = this.biggestNode();
+    return node.keys[node.keys.length - 1];
+  }
   split(pos: number = 0, size: number = 2): Node {
     // Split works by slicing the children and putting the splited nodes
     // in right place.
@@ -151,7 +174,7 @@ export default class Node {
       newRoot.insert(key, comparator, size);
       return newRoot;
     }
-    if (this.children.length === 0) {
+    if (this.isLeaf()) {
       // If leaf node, put the key in the right place, while pushing the other
       // ones.
       let i;
@@ -165,19 +188,7 @@ export default class Node {
       return this;
     } else {
       // If middle node, Find right offset and insert to there.
-      // This uses binary search to find the offset.
-      let high = this.keys.length - 1;
-      let low = 0;
-      do {
-        let mid = (high + low) >> 1;
-        let compared = comparator(this.keys[mid], key);
-        if (compared < 0) {
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      } while (high >= low);
-      let i = low;
+      let [i] = this.locate(key, comparator);
       let child = this.children[i];
       if (child.keys.length === size * 2 - 1) {
         this.split(i, size);
@@ -186,6 +197,80 @@ export default class Node {
       if (!isRoot) return child.insert(key, comparator, size);
       child.insert(key, comparator, size);
       return this;
+    }
+  }
+  remove(key: any, comparator: (a: any, b: any) => number, size: number = 2
+  ): void | Node {
+    // We could remove the key and rebalance the tree, but that'd be expensive.
+    // Instead, there's a single pass algorithm for removing an entry from the
+    // tree. Some databases like PostgreSQL instead marks the entry 'deleted'
+    // and vacuum the database frequently, but, since this doesn't use any
+    // disk access at all, that isn't required.
+
+    // First, we need to locate where the key would be, and descend while
+    // performing rebalancing logic.
+    let [position, exact] = this.locate(key, comparator);
+    if (!exact) {
+      // Descending node requires at least `size` keys, so if descending
+      // node doesn't have it - we have to make it have `size` keys by
+      // merging two nodes, etc.
+      let childNode = this.children[position];
+      if (childNode.keys.length < size) {
+        let leftNode = this.children[position - 1];
+        let rightNode = this.children[position + 1];
+        // Search for sibling node with at least `size` keys, and steal
+        // a key from that node.
+        if (leftNode && leftNode.keys.length >= size) {
+          // Steal a key from left node.
+          childNode.keys.unshift(this.keys[position]);
+          // TODO What if left node's children is missing?
+          childNode.children.unshift(leftNode.children.pop());
+          this.keys[position] = leftNode.keys.pop();
+        } else if (rightNode && rightNode.keys.length >= size) {
+          // Steal a key from right node.
+          childNode.keys.push(this.keys[position]);
+          // TODO What if right node's children is missing?
+          childNode.children.push(rightNode.children.shift());
+          this.keys[position] = rightNode.keys.shift();
+        } else {
+          // If both sibling nodes don't have insufficient keys, merge the
+          // child node with one of the sibling node.
+          let mergeLeft, mergeRight, offset;
+          if (leftNode) {
+            mergeLeft = leftNode;
+            mergeRight = childNode;
+            offset = 0;
+          } else if (rightNode) {
+            mergeLeft = childNode;
+            mergeRight = rightNode;
+            offset = 1;
+          } else {
+            throw new Error('There is no left / right node while removing.');
+          }
+          let leftSize = mergeLeft.keys.length;
+          mergeLeft.keys.push(this.keys[position + offset]);
+          mergeRight.keys.forEach(v => mergeLeft.keys.push(v));
+          mergeRight.children.forEach((v, k) => {
+            mergeLeft.children[leftSize + k + 1] = v;
+          });
+          this.keys.splice(position + offset, 1);
+          this.children.splice(position + offset, 1);
+          return mergeLeft.remove(key, comparator, size);
+        }
+      }
+      return childNode.remove(key, comparator, size);
+    }
+    if (this.isLeaf()) {
+      // If the node is leaf node, we can simply remove the key from the node,
+      // the end.
+      this.keys.splice(position, 1);
+    } else {
+      // Otherwise, it's a little complicated...
+      // Search for sibling node with at least `size` keys, and steal
+      // 'most closest to the key value' key in the node.
+      // If both sibling nodes don't have insufficient keys, merge sibling nodes
+      // to one, while deleteing the key in the process.
+
     }
   }
 }
