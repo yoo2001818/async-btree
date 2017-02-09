@@ -201,4 +201,17 @@ describe('Node', () => {
       expect([...node]).toEqual(answer);
     });
   });
+  describe('#remove', () => {
+    it('should remove node 0 to 10', () => {
+      let node = new Node();
+      let comparator = (a, b) => a - b;
+      for (let i = 0; i < 10; ++i) {
+        node = node.insert(i, comparator, 2, true);
+      }
+      for (let i = 0; i < 10; ++i) {
+        node.remove(i, comparator, 2);
+      }
+      expect([...node]).toEqual([]);
+    });
+  });
 });

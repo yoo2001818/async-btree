@@ -223,29 +223,32 @@ export default class Node {
         if (leftNode && leftNode.keys.length >= size) {
           // Steal a key from left node.
           childNode.keys.unshift(this.keys[position]);
-          // TODO What if left node's children is missing?
-          childNode.children.unshift(leftNode.children.pop());
+          let childrenAdd = leftNode.children.pop();
+          if (childrenAdd) childNode.children.unshift(childrenAdd);
           this.keys[position] = leftNode.keys.pop();
         } else if (rightNode && rightNode.keys.length >= size) {
           // Steal a key from right node.
           childNode.keys.push(this.keys[position]);
-          // TODO What if right node's children is missing?
-          childNode.children.push(rightNode.children.shift());
+          let childrenAdd = rightNode.children.shift();
+          if (childrenAdd) childNode.children.push(childrenAdd);
           this.keys[position] = rightNode.keys.shift();
         } else {
           // If both sibling nodes don't have insufficient keys, merge the
           // child node with one of the sibling node.
-          let mergeLeft, mergeRight, offset;
+          let mergeLeft, mergeRight, offset, siblingOffset;
           if (leftNode) {
             mergeLeft = leftNode;
             mergeRight = childNode;
-            offset = 0;
+            offset = -1;
+            siblingOffset = 0;
           } else if (rightNode) {
             mergeLeft = childNode;
             mergeRight = rightNode;
-            offset = 1;
+            offset = 0;
+            siblingOffset = 1;
           } else {
-            throw new Error('There is no left / right node while removing.');
+            return childNode.remove(key, comparator, size);
+            // throw new Error('There is no left / right node while removing.');
           }
           let leftSize = mergeLeft.keys.length;
           mergeLeft.keys.push(this.keys[position + offset]);
@@ -254,7 +257,7 @@ export default class Node {
             mergeLeft.children[leftSize + k + 1] = v;
           });
           this.keys.splice(position + offset, 1);
-          this.children.splice(position + offset, 1);
+          this.children.splice(position + siblingOffset, 1);
           return mergeLeft.remove(key, comparator, size);
         }
       }
