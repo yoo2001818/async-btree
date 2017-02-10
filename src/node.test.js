@@ -209,7 +209,7 @@ describe('Node', () => {
         node = node.insert(i, comparator, 2, true);
       }
       for (let i = 0; i < 10; ++i) {
-        node.remove(i, comparator, 2);
+        node = node.remove(i, comparator, 2);
       }
       expect([...node]).toEqual([]);
     });

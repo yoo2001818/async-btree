@@ -199,8 +199,8 @@ export default class Node {
       return this;
     }
   }
-  remove(key: any, comparator: (a: any, b: any) => number, size: number = 2
-  ): void | Node {
+  remove(key: any, comparator: (a: any, b: any) => number, size: number = 2,
+  rootNode: Node = this): void | Node {
     // We could remove the key and rebalance the tree, but that'd be expensive.
     // Instead, there's a single pass algorithm for removing an entry from the
     // tree. Some databases like PostgreSQL instead marks the entry 'deleted'
@@ -247,8 +247,7 @@ export default class Node {
             offset = 0;
             siblingOffset = 1;
           } else {
-            return childNode.remove(key, comparator, size);
-            // throw new Error('There is no left / right node while removing.');
+            throw new Error('There is no left / right node while removing.');
           }
           let leftSize = mergeLeft.keys.length;
           mergeLeft.keys.push(this.keys[position + offset]);
@@ -258,10 +257,14 @@ export default class Node {
           });
           this.keys.splice(position + offset, 1);
           this.children.splice(position + siblingOffset, 1);
-          return mergeLeft.remove(key, comparator, size);
+          // If no key is left in current node, it means that root node
+          // is now obsolete; shift the root node.
+          let newRoot = rootNode;
+          if (this.keys.length === 0) newRoot = mergeLeft;
+          return mergeLeft.remove(key, comparator, size, newRoot);
         }
       }
-      return childNode.remove(key, comparator, size);
+      return childNode.remove(key, comparator, size, rootNode);
     }
     if (this.isLeaf()) {
       // If the node is leaf node, we can simply remove the key from the node,
@@ -298,5 +301,6 @@ export default class Node {
         throw new Error('Left and right node is missing while removing');
       }
     }
+    return rootNode;
   }
 }
