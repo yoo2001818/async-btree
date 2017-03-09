@@ -15,6 +15,8 @@ export class LocateResult {
 }
 
 export default class Node<Key> {
+  // The address of node itself.
+  id: any;
   size: number;
   keys: Key[];
   data: any[];
@@ -22,7 +24,8 @@ export default class Node<Key> {
   // be stored too. IOInterface should handle this then.
   children: any[];
   leaf: boolean;
-  constructor(size, keys, data, children, leaf) {
+  constructor(id, size, keys, data, children, leaf) {
+    this.id = id;
     this.size = size;
     this.keys = keys;
     this.data = data;
