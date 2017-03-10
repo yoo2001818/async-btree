@@ -21,9 +21,8 @@ export default class MemoryIO {
     this.data[id] = undefined;
     return Promise.resolve();
   }
-  allocate(node) {
+  allocate() {
     let id = this.data.length;
-    this.data[id] = node;
     return Promise.resolve(id);
   }
 }

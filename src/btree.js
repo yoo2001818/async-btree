@@ -7,7 +7,7 @@ interface IOInterface {
   read(id: any): Promise<Node>;
   write(id: any, node: Node): Promise<any>;
   remove(id: any): Promise<void>;
-  allocate(node: Node): Promise<any>;
+  allocate(): Promise<any>;
 }
 
 export default class BTree<Key, Value> {
@@ -30,7 +30,56 @@ export default class BTree<Key, Value> {
       return this.io.read(id);
     });
   }
-  insert(key: Key, data: Value): Promise<void> {
+  async insert(key: Key, data: Value): void {
+    let node = await this.readRoot();
+    if (node == null) {
+      // Create root node. If this is the case, just put data into the root
+      // node and we're done.
+      node = new Node(await this.io.allocate(), 1, [key], [data], [], true);
+      await this.io.write(node.id, node);
+      await this.io.writeRoot(node.id);
+      return;
+    }
+    if (node.keys.length >= this.nodeSize * 2 - 1) {
+      // Create new root node then separate it.
+      let newRoot = new Node(await this.io.allocate(), 0, [], [], [node.id],
+        false);
+      await this.split(newRoot, 0);
+      await this.io.writeRoot(newRoot.id);
+      node = newRoot;
+    }
+    while (node != null) {
+      if (node.leaf) {
+        // If leaf node, put the key in the right place, while pushing the other
+        // ones.
+        let i;
+        for (i = node.n;
+          i >= 1 && this.comparator(node.keys[i - 1], key) > 0; --i
+        ) {
+          node.keys[i] = node.keys[i - 1];
+          node.data[i] = node.data[i - 1];
+        }
+        node.keys[i] = key;
+        node.data[i] = data;
+        await this.io.write(node.id, node);
+        // We're done here.
+        return this;
+      } else {
+        // If middle node, Find right offset and insert to there.
+        let result = node.locate(key, this.comparator);
+        if (result.exact) throw new Error('Duplicate key');
+        let pos = result.position;
+        let child = node.children[pos];
+        if (child.keys.length === this.nodeSize * 2 - 1) {
+          await this.split(node, pos);
+          if (this.comparator(node.keys[pos], key) < 0) {
+            child = node.children[pos + 1];
+          }
+        }
+        // Go to below node and continue...
+        node = child;
+      }
+    }
   }
   remove(key: Key): Promise<void> {
   }
@@ -74,14 +123,19 @@ export default class BTree<Key, Value> {
     child.children.length = this.nodeSize;
 
     // Save the left / right node.
-    node.children[pos + 1] = await this.io.allocate(right);
+    right.id = await this.io.allocate();
+    node.children[pos + 1] = right.id;
     node.keys[pos] = center;
-    await this.io.write(child.id, child);
-    await this.io.write(node.id, node);
+    await Promise.all([
+      this.io.write(right.id, right),
+      this.io.write(child.id, child),
+      this.io.write(node.id, node),
+    ]);
     return node;
   }
   async traverse(callback: Function): void {
-    return this._traverse(await this.readRoot(), callback);
+    let rootNode = await this.readRoot();
+    return await this._traverse(rootNode, callback);
   }
   async _traverse(node: Node, callback: Function): void {
     // This is regular B-Tree, so each regular node has at least one data.
