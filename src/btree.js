@@ -35,15 +35,16 @@ export default class BTree<Key, Value> {
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
       // node and we're done.
-      node = new Node(await this.io.allocate(), 1, [key], [data], [], true);
+      node = new Node(undefined, 1, [key], [data], [], true);
+      node.id = await this.io.allocate(node);
       await this.io.write(node.id, node);
       await this.io.writeRoot(node.id);
       return;
     }
     if (node.keys.length >= this.nodeSize * 2 - 1) {
       // Create new root node then separate it.
-      let newRoot = new Node(await this.io.allocate(), 0, [], [], [node.id],
-        false);
+      let newRoot = new Node(undefined, 0, [], [], [node.id], false);
+      newRoot.id = await this.io.allocate(newRoot);
       await this.split(newRoot, 0);
       await this.io.writeRoot(newRoot.id);
       node = newRoot;
@@ -123,7 +124,7 @@ export default class BTree<Key, Value> {
     child.children.length = this.nodeSize;
 
     // Save the left / right node.
-    right.id = await this.io.allocate();
+    right.id = await this.io.allocate(right);
     node.children[pos + 1] = right.id;
     node.keys[pos] = center;
     await Promise.all([
@@ -141,13 +142,13 @@ export default class BTree<Key, Value> {
     // This is regular B-Tree, so each regular node has at least one data.
     let i;
     for (i = 0; i < node.size; ++i) {
-      if (node.children[i] != null) {
+      if (node.leaf && node.children[i] != null) {
         await this._traverse(await this.io.read(node.children[i]), callback);
       }
       // TODO Should we put data in same section?
       callback(await this.io.read(node.data[i]));
     }
-    if (node.children[i] != null) {
+    if (node.leaf && node.children[i] != null) {
       await this._traverse(await this.io.read(node.children[i]), callback);
     }
   }

@@ -11,18 +11,22 @@ export default class MemoryIO {
     return Promise.resolve(id);
   }
   read(id) {
+    console.log('Reading ' + id);
     return Promise.resolve(this.data[id]);
   }
   write(id, node) {
+    console.log('Writing ' + id);
     this.data[id] = node;
     return Promise.resolve(id);
   }
   remove(id) {
+    console.log('Removing ' + id);
     this.data[id] = undefined;
     return Promise.resolve();
   }
   allocate() {
     let id = this.data.length;
+    console.log('Allocating ' + id);
     return Promise.resolve(id);
   }
 }
