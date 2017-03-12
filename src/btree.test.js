@@ -25,13 +25,8 @@ describe('BTree', () => {
       ]);
     });
     it('should traverse the tree in-order', async () => {
-      console.log(await spreadAsyncIterable(btree));
-      let i = 0;
-      await btree.traverse(v => {
-        i++;
-        expect(v).toBe(i);
-      });
-      expect(i).toBe(9);
+      expect(await spreadAsyncIterable(btree))
+        .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     });
   });
   describe('#traverse', () => {

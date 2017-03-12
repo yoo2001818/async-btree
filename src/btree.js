@@ -172,21 +172,12 @@ export default class BTree<Key, Value> {
     }).call(this);
   }
   async traverse(callback: Function): void {
-    let rootNode = await this.readRoot();
-    return await this._traverse(rootNode, callback);
-  }
-  async _traverse(node: Node, callback: Function): void {
-    // This is regular B-Tree, so each regular node has at least one data.
-    let i;
-    for (i = 0; i < node.size; ++i) {
-      if (node.leaf && node.children[i] != null) {
-        await this._traverse(await this.io.read(node.children[i]), callback);
-      }
-      // TODO Should we put data in same section?
-      callback(await this.io.read(node.data[i]));
-    }
-    if (node.leaf && node.children[i] != null) {
-      await this._traverse(await this.io.read(node.children[i]), callback);
+    // For await loops doesn't work well for now - just call iterator directly.
+    const iterator = this[Symbol.asyncIterator]();
+    while (true) {
+      const { value, done } = await iterator.next();
+      if (done) break;
+      callback(value);
     }
   }
 }
