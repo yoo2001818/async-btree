@@ -4,5 +4,8 @@
       "exclude": ["transform-regenerator"]
     }],
     "react"
+  ],
+  "plugins": [
+    "transform-async-generator-functions"
   ]
 }

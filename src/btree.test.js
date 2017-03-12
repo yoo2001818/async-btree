@@ -1,5 +1,6 @@
 import BTree from './btree';
 import Node, { N } from './node';
+import spreadAsyncIterable from './util/spreadAsyncIterable';
 
 describe('BTree', () => {
   // Use direct I/O without using IDs for ease of debugging
@@ -12,6 +13,25 @@ describe('BTree', () => {
       write: (id) => Promise.resolve(id),
       remove: () => Promise.resolve(),
       allocate: (node) => Promise.resolve(node),
+    });
+  });
+  describe('#@@asyncIterator', () => {
+    beforeEach(() => {
+      // Overwrite root node.
+      rootNode = N([3, 5], [
+        N([1, 2]),
+        N([4]),
+        N([8], [N([6, 7]), N([9])]),
+      ]);
+    });
+    it('should traverse the tree in-order', async () => {
+      console.log(await spreadAsyncIterable(btree));
+      let i = 0;
+      await btree.traverse(v => {
+        i++;
+        expect(v).toBe(i);
+      });
+      expect(i).toBe(9);
     });
   });
   describe('#traverse', () => {

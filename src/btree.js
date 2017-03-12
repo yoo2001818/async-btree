@@ -134,6 +134,43 @@ export default class BTree<Key, Value> {
     ]);
     return node;
   }
+  [Symbol.asyncIterator]() {
+    // Use IIFE to workaround the lack of class async functions.
+    // However, there is no generator arrow functions, we need to workaround
+    // around this object too.
+    // However again, eslint's error conflicts if we try to call 'call'
+    // with IIFE, so use eslint-disable-line to workaround this too.
+    // Why so complicated? It's not in the spec yet.
+    return (async function* () { // eslint-disable-line no-extra-parens
+      // This can be greatly simplified in B+Tree, however, this is just a
+      // regular B-Tree, so let's just use a stack.
+      let rootNode = await this.readRoot();
+      let stack = [rootNode, 0];
+      let count = 0;
+      while (stack.length > 0 && count < 1000) {
+        count++;
+        let node = stack[stack.length - 2];
+        let pos = stack[stack.length - 1] ++;
+        if (pos !== 0) yield await this.io.read(node.data[pos - 1]);
+        // Step into descending node...
+        if (node.leaf && node.children[pos] != null) {
+          if (pos >= node.size) {
+            // Do TCO if this node is last children of the node
+            stack[stack.length - 2] = await this.io.read(node.children[pos]);
+            stack[stack.length - 1] = 0;
+          } else {
+            // Otherwise, just push.
+            stack.push(await this.io.read(node.children[pos]));
+            stack.push(0);
+          }
+        } else if (pos >= node.size) {
+          // Escape if finished.
+          stack.pop();
+          stack.pop();
+        }
+      }
+    }).call(this);
+  }
   async traverse(callback: Function): void {
     let rootNode = await this.readRoot();
     return await this._traverse(rootNode, callback);
