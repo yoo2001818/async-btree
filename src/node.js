@@ -16,7 +16,7 @@ export class LocateResult {
 
 export function N(keys, children) {
   return new Node(undefined, keys.length, keys, keys, children,
-    children != null);
+    children == null);
 }
 
 export default class Node<Key> {

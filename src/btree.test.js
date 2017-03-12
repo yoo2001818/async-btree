@@ -13,6 +13,35 @@ describe('BTree', () => {
       write: (id) => Promise.resolve(id),
       remove: () => Promise.resolve(),
       allocate: (node) => Promise.resolve(node),
+    }, 2, (a, b) => a - b);
+    rootNode = null;
+  });
+  describe('#insert', () => {
+    it('should return itself', async () => {
+      expect(await btree.insert(1, 1)).toBe(btree);
+    });
+    it('should work on empty root', async () => {
+      expect(await btree.insert(1, 1)).toBe(btree);
+      expect(await spreadAsyncIterable(btree)).toEqual([1]);
+    });
+    it('should sort randomized array to 0..99', async () => {
+      let arr = [];
+      let answer;
+      for (let i = 0; i < 10; ++i) {
+        arr.push(i);
+      }
+      answer = arr.slice();
+      // Use simple shuffle algorithm
+      for (let i = 9; i > 0; --i) {
+        let j = Math.random() * i | 0;
+        let tmp = arr[j];
+        arr[j] = arr[i];
+        arr[i] = tmp;
+      }
+      for (let i = 0; i < 10; ++i) {
+        expect(await btree.insert(arr[i], arr[i])).toBe(btree);
+      }
+      expect(await spreadAsyncIterable(btree)).toEqual(answer);
     });
   });
   describe('#@@asyncIterator', () => {

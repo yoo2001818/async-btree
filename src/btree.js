@@ -30,7 +30,7 @@ export default class BTree<Key, Value> {
       return this.io.read(id);
     });
   }
-  async insert(key: Key, data: Value): void {
+  async insert(key: Key, data: Value): BTree {
     let node = await this.readRoot();
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
@@ -39,9 +39,9 @@ export default class BTree<Key, Value> {
       node.id = await this.io.allocate(node);
       await this.io.write(node.id, node);
       await this.io.writeRoot(node.id);
-      return;
+      return this;
     }
-    if (node.keys.length >= this.nodeSize * 2 - 1) {
+    if (node.size >= this.nodeSize * 2 - 1) {
       // Create new root node then separate it.
       let newRoot = new Node(undefined, 0, [], [], [node.id], false);
       newRoot.id = await this.io.allocate(newRoot);
@@ -54,7 +54,7 @@ export default class BTree<Key, Value> {
         // If leaf node, put the key in the right place, while pushing the other
         // ones.
         let i;
-        for (i = node.n;
+        for (i = node.size;
           i >= 1 && this.comparator(node.keys[i - 1], key) > 0; --i
         ) {
           node.keys[i] = node.keys[i - 1];
@@ -62,6 +62,7 @@ export default class BTree<Key, Value> {
         }
         node.keys[i] = key;
         node.data[i] = data;
+        node.size ++;
         await this.io.write(node.id, node);
         // We're done here.
         return this;
@@ -118,15 +119,20 @@ export default class BTree<Key, Value> {
     );
     // Fetch the center key.
     let center = child.keys[this.nodeSize - 1];
+    let centerData = child.data[this.nodeSize - 1];
     // Resize the left node.
     child.size = this.nodeSize - 1;
     child.keys.length = this.nodeSize - 1;
+    child.data.length = this.nodeSize - 1;
     child.children.length = this.nodeSize;
 
     // Save the left / right node.
     right.id = await this.io.allocate(right);
     node.children[pos + 1] = right.id;
     node.keys[pos] = center;
+    node.data[pos] = centerData;
+    node.size = node.size + 1;
+    node.leaf = false;
     await Promise.all([
       this.io.write(right.id, right),
       this.io.write(child.id, child),
@@ -153,7 +159,7 @@ export default class BTree<Key, Value> {
         let pos = stack[stack.length - 1] ++;
         if (pos !== 0) yield await this.io.read(node.data[pos - 1]);
         // Step into descending node...
-        if (node.leaf && node.children[pos] != null) {
+        if (!node.leaf && node.children[pos] != null) {
           if (pos >= node.size) {
             // Do TCO if this node is last children of the node
             stack[stack.length - 2] = await this.io.read(node.children[pos]);
