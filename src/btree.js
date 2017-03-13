@@ -359,11 +359,31 @@ export default class BTree<Key, Value> {
     ]);
     return node;
   }
-  async smallestNode(node: Node): Node {
-    // TODO
+  async smallestNode(topNode: ?Node): ?Node {
+    // Just navigate to smallest node, easy!
+    let node = topNode || await this.readRoot();
+    while (node != null && !node.leaf) {
+      node = await this.io.read(node.children[0]);
+    }
+    return node;
   }
-  async biggestNode(node: Node): Node {
-    // TODO
+  async biggestNode(topNode: ?Node): ?Node {
+    // Just navigate to biggest node, easy!
+    let node = topNode || await this.readRoot();
+    while (node != null && !node.leaf) {
+      node = await this.io.read(node.children[node.size]);
+    }
+    return node;
+  }
+  async smallest(topNode: ?Node): ?Key {
+    let node = await this.smallestNode(topNode);
+    if (node == null) return null;
+    return node.keys[0];
+  }
+  async biggest(topNode: ?Node): ?Key {
+    let node = await this.biggestNode(topNode);
+    if (node == null) return null;
+    return node.keys[node.size - 1];
   }
   [Symbol.asyncIterator]() {
     // Use IIFE to workaround the lack of class async functions.

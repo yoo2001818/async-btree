@@ -67,6 +67,22 @@ describe('BTree', () => {
       expect(await btree.get(undefined)).toBe(null);
     });
   });
+  describe('#smallest', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 100; ++i) await btree.insert(i, i);
+    });
+    it('should return smallest value', async () => {
+      expect(await btree.smallest()).toBe(0);
+    });
+  });
+  describe('#biggest', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 100; ++i) await btree.insert(i, i);
+    });
+    it('should return smallest value', async () => {
+      expect(await btree.biggest()).toBe(99);
+    });
+  });
   describe('#@@asyncIterator', () => {
     beforeEach(() => {
       // Overwrite root node.
