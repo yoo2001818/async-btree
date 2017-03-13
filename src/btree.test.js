@@ -48,6 +48,18 @@ describe('BTree', () => {
       expect(await spreadAsyncIterable(btree)).toEqual(answer);
     });
   });
+  describe('#remove', () => {
+    it('should remove node 0 to 9', async () => {
+      for (let i = 0; i < 10; ++i) await btree.insert(i, i);
+      for (let i = 0; i < 9; ++i) expect(await btree.remove(i)).toBe(true);
+      expect(await spreadAsyncIterable(btree)).toEqual([9]);
+    });
+    it('should return false if failed to find node', async () => {
+      for (let i = 0; i < 10; ++i) await btree.insert(i, i);
+      expect(await btree.remove(53)).toBe(false);
+      expect(await btree.remove(-49)).toBe(false);
+    });
+  });
   describe('#get', () => {
     beforeEach(async () => {
       for (let i = 0; i < 100; ++i) {
