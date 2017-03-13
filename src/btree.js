@@ -1,20 +1,26 @@
 // A asynchronous B-Tree implementation.
 import Node from './node';
 
-interface IOInterface {
+interface IOInterface<Value> {
   getRoot(): Promise<any>;
   writeRoot(id: any): Promise<any>;
+  // Node section
   read(id: any): Promise<Node>;
   write(id: any, node: Node): Promise<any>;
   remove(id: any): Promise<void>;
-  allocate(): Promise<any>;
+  allocate(node: Node): Promise<any>;
+  // Data section
+  readData(id: any): Promise<Value>;
+  writeData(id: any, node: Value): Promise<any>;
+  removeData(id: any): Promise<void>;
+  allocateData(node: Value): Promise<any>;
 }
 
 export default class BTree<Key, Value> {
   nodeSize: number;
   comparator: (a: Key, b: Key) => number;
   root: Node;
-  io: IOInterface;
+  io: IOInterface<Value>;
 
   constructor(io: IOInterface, nodeSize: number,
     comparator: (a: Key, b: Key) => number
@@ -61,7 +67,8 @@ export default class BTree<Key, Value> {
           node.data[i] = node.data[i - 1];
         }
         node.keys[i] = key;
-        node.data[i] = data;
+        let dataId = await this.io.allocateData(data);
+        node.data[i] = await this.io.writeData(dataId, data);
         node.size ++;
         await this.io.write(node.id, node);
         // We're done here.
@@ -85,7 +92,20 @@ export default class BTree<Key, Value> {
   }
   remove(key: Key): Promise<void> {
   }
-  get(key: Key): Promise<Value> {
+  async get(key: Key): ?Value {
+    // Start from root node, locate the key by descending into the value;
+    let node = await this.readRoot();
+    while (node != null) {
+      // Try to locate where to go.
+      let { position, exact } = node.locate(key, this.comparator);
+      if (exact) return await this.io.readData(node.data[position]);
+      // If not matched, go down to right child
+      // But this fails in leaf node, so just mark it as a failure
+      if (node.leaf) return null;
+      node = await this.io.read(node.children[position]);
+    }
+    // Failed!
+    return null;
   }
   async split(node: Node, pos: number = 0): Node {
     // Split works by slicing the children and putting the splited nodes
@@ -152,9 +172,7 @@ export default class BTree<Key, Value> {
       // regular B-Tree, so let's just use a stack.
       let rootNode = await this.readRoot();
       let stack = [rootNode, 0];
-      let count = 0;
-      while (stack.length > 0 && count < 1000) {
-        count++;
+      while (stack.length > 0) {
         let node = stack[stack.length - 2];
         let pos = stack[stack.length - 1] ++;
         if (pos !== 0) yield await this.io.read(node.data[pos - 1]);
