@@ -1,5 +1,5 @@
 import BTree from './btree';
-import Node, { N } from './node';
+import { N } from './node';
 import spreadAsyncIterable from './util/spreadAsyncIterable';
 
 describe('BTree', () => {
