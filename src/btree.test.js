@@ -22,6 +22,20 @@ describe('BTree', () => {
     rootNode = null;
   });
   test(() => btree);
+  describe('#reverseIterator', () => {
+    beforeEach(() => {
+      // Overwrite root node.
+      rootNode = N([3, 5], [
+        N([1, 2]),
+        N([4]),
+        N([8], [N([6, 7]), N([9])]),
+      ]);
+    });
+    it('should traverse the tree in-order', async () => {
+      expect(await spreadAsyncIterable(btree.reverseIterator()))
+        .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1]);
+    });
+  });
   describe('#@@asyncIterator', () => {
     beforeEach(() => {
       // Overwrite root node.

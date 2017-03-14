@@ -57,7 +57,6 @@ export default class BTree<Key, Value> {
       await this.io.writeRoot(newRoot.id);
       node = newRoot;
     }
-    let nodeBak = node;
     while (node != null) {
       if (node.leaf) {
         // If leaf node, put the key in the right place, while pushing the other
@@ -388,6 +387,41 @@ export default class BTree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.size - 1];
   }
+  reverseIterator() {
+    // Reverse version of asyncIterator.
+    let iter = (async function* () { // eslint-disable-line no-extra-parens
+      // This can be greatly simplified in B+Tree, however, this is just a
+      // regular B-Tree, so let's just use a stack.
+      let rootNode = await this.readRoot();
+      if (rootNode == null) return;
+      let stack = [rootNode, rootNode.size];
+      while (stack.length > 0) {
+        let node = stack[stack.length - 2];
+        let pos = stack[stack.length - 1] --;
+        if (pos !== node.size) yield await this.io.readData(node.data[pos]);
+        // Step into descending node...
+        if (!node.leaf && node.children[pos] != null) {
+          if (pos === 0) {
+            // Do TCO if this node is last children of the node
+            let newNode = await this.io.read(node.children[pos]);
+            stack[stack.length - 2] = newNode;
+            stack[stack.length - 1] = newNode.size;
+          } else {
+            // Otherwise, just push.
+            let newNode = await this.io.read(node.children[pos]);
+            stack.push(newNode);
+            stack.push(newNode.size);
+          }
+        } else if (pos === 0) {
+          // Escape if finished.
+          stack.pop();
+          stack.pop();
+        }
+      }
+    }).call(this);
+    iter[Symbol.asyncIterator] = () => iter;
+    return iter;
+  }
   [Symbol.asyncIterator]() {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
@@ -404,7 +438,7 @@ export default class BTree<Key, Value> {
       while (stack.length > 0) {
         let node = stack[stack.length - 2];
         let pos = stack[stack.length - 1] ++;
-        if (pos !== 0) yield await this.io.read(node.data[pos - 1]);
+        if (pos !== 0) yield await this.io.readData(node.data[pos - 1]);
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
           if (pos >= node.size) {
