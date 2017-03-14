@@ -41,8 +41,10 @@ export default class BTree<Key, Value> {
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
       // node and we're done.
-      node = new Node(undefined, 1, [key], [data], [], true);
+      node = new Node(undefined, 1, [key], [0], [], true);
       node.id = await this.io.allocate(node);
+      let dataId = await this.io.allocateData(data);
+      node.data[0] = await this.io.writeData(dataId, data);
       await this.io.write(node.id, node);
       await this.io.writeRoot(node.id);
       return this;
@@ -55,6 +57,7 @@ export default class BTree<Key, Value> {
       await this.io.writeRoot(newRoot.id);
       node = newRoot;
     }
+    let nodeBak = node;
     while (node != null) {
       if (node.leaf) {
         // If leaf node, put the key in the right place, while pushing the other
@@ -78,11 +81,11 @@ export default class BTree<Key, Value> {
         let result = node.locate(key, this.comparator);
         if (result.exact) throw new Error('Duplicate key');
         let pos = result.position;
-        let child = node.children[pos];
+        let child = await this.io.read(node.children[pos]);
         if (child.keys.length === this.nodeSize * 2 - 1) {
           await this.split(node, pos);
           if (this.comparator(node.keys[pos], key) < 0) {
-            child = node.children[pos + 1];
+            child = await this.io.read(node.children[pos + 1]);
           }
         }
         // Go to below node and continue...
@@ -245,8 +248,8 @@ export default class BTree<Key, Value> {
             node.keys[position] = biggest;
             node.data[position] = biggestData;
             await Promise.all([
-              this.io.write(biggestNode),
-              this.io.write(node),
+              this.io.write(biggestNode.id, biggestNode),
+              this.io.write(node.id, node),
               this.io.removeData(dataId),
             ]);
           } else if (rightNode != null && rightNode.size >= this.nodeSize) {
@@ -259,8 +262,8 @@ export default class BTree<Key, Value> {
             node.keys[position] = smallest;
             node.data[position] = smallestData;
             await Promise.all([
-              this.io.write(smallestNode),
-              this.io.write(node),
+              this.io.write(smallestNode.id, smallestNode),
+              this.io.write(node.id, node),
               this.io.removeData(dataId),
             ]);
           } else if (leftNode != null && rightNode != null) {
@@ -317,7 +320,7 @@ export default class BTree<Key, Value> {
     // Thus it'd be splited into something like this:
     // A-+-D-+-B
     //   C   E
-    let child = node.children[pos];
+    let child = await this.io.read(node.children[pos]);
 
     // Push parent's keys / children to right to make a space to insert the
     // nodes.
@@ -396,6 +399,7 @@ export default class BTree<Key, Value> {
       // This can be greatly simplified in B+Tree, however, this is just a
       // regular B-Tree, so let's just use a stack.
       let rootNode = await this.readRoot();
+      if (rootNode == null) return;
       let stack = [rootNode, 0];
       while (stack.length > 0) {
         let node = stack[stack.length - 2];
