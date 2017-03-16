@@ -12,12 +12,27 @@ import fs from 'mz/fs';
 // There's a superblock, which contains the list of free blocks, used blocks,
 // root block, etc.
 // In B+Tree, we should store next / prev pointers in node too.
+const buffer = Buffer.alloc(16 * 1024);
 export default class FileIO {
   constructor() {
     this.fd = null;
   }
   async open(path) {
-    this.fd = await fs.open(path, 'w+');
+    try {
+      this.fd = await fs.open(path, 'r+');
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        // Generate new database.
+        this.fd = await fs.open(path, 'w+');
+      } else {
+        throw err;
+      }
+    }
+    await this.readSuperblock();
+  }
+  async readSuperblock() {
+    // Load first 16K of the file descriptor.
+    await fs.read(this.fd, buffer, 0, 16 * 1024, 0);
   }
   getRoot() {
     return Promise.resolve(this.root);
