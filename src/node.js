@@ -1,3 +1,4 @@
+// @flow
 // import indent from './util/indent';
 
 export type Comparator<Key> = (a: Key, b: Key) => number;
@@ -7,14 +8,14 @@ export type Comparator<Key> = (a: Key, b: Key) => number;
 export class LocateResult {
   position: number;
   exact: boolean;
-  constructor(position, exact) {
+  constructor(position: number, exact: boolean) {
     // Again, we're using | and !! to make the JIT compiler aware of its types.
     this.position = position | 0;
     this.exact = !!exact;
   }
 }
 
-export function N(keys, children) {
+export function N<Key>(keys: Key[], children: any[]): Node<Key> {
   return new Node(undefined, keys.length, keys, keys, children,
     children == null);
 }
@@ -29,7 +30,8 @@ export default class Node<Key> {
   // be stored too. IOInterface should handle this then.
   children: any[];
   leaf: boolean;
-  constructor(id, size, keys, data, children, leaf) {
+  constructor(id: any, size: number, keys: Key[], data: any[],
+    children: any[], leaf: boolean) {
     this.id = id;
     this.size = size;
     this.keys = keys;
@@ -37,7 +39,7 @@ export default class Node<Key> {
     this.children = children;
     this.leaf = leaf;
   }
-  locate(key: Key, comparator: Comparator): [number, boolean] {
+  locate(key: Key, comparator: Comparator<Key>): LocateResult {
     let high = this.keys.length - 1;
     let low = 0;
     do {

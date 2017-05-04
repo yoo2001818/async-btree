@@ -1,14 +1,15 @@
+// @flow
 // A asynchronous B-Tree implementation.
 import Node from './node';
 
-interface IOInterface<Value> {
+interface IOInterface<Key, Value> {
   getRoot(): Promise<any>;
   writeRoot(id: any): Promise<any>;
   // Node section
-  read(id: any): Promise<Node>;
-  write(id: any, node: Node): Promise<any>;
+  read(id: any): Promise<Node<Key>>;
+  write(id: any, node: Node<Key>): Promise<any>;
   remove(id: any): Promise<void>;
-  allocate(node: Node): Promise<any>;
+  allocate(node: Node<Key>): Promise<any>;
   // Data section
   readData(id: any): Promise<Value>;
   writeData(id: any, node: Value): Promise<any>;
@@ -19,24 +20,24 @@ interface IOInterface<Value> {
 export default class BTree<Key, Value> {
   nodeSize: number;
   comparator: (a: Key, b: Key) => number;
-  root: Node;
-  io: IOInterface<Value>;
+  root: Node<Key>;
+  io: IOInterface<Key, Value>;
 
-  constructor(io: IOInterface, nodeSize: number,
+  constructor(io: IOInterface<Key, Value>, nodeSize: number,
     comparator: (a: Key, b: Key) => number
   ) {
     this.io = io;
     this.nodeSize = nodeSize;
     this.comparator = comparator;
   }
-  readRoot(): Promise<?Node> {
+  readRoot(): Promise<?Node<Key>> {
     return this.io.getRoot().then(id => {
       if (id == null) return null;
       // We're not using async function to use TCO?
       return this.io.read(id);
     });
   }
-  async insert(key: Key, data: Value): BTree {
+  async insert(key: Key, data: Value): Promise<BTree<Key, Value>> {
     let node = await this.readRoot();
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
@@ -91,8 +92,9 @@ export default class BTree<Key, Value> {
         node = child;
       }
     }
+    return this;
   }
-  async remove(key: Key): boolean {
+  async remove(key: Key): Promise<boolean> {
     // Start from the root node, remove entries to match B-Tree criteria.
     let node = await this.readRoot();
     while (node != null) {
@@ -240,6 +242,10 @@ export default class BTree<Key, Value> {
           if (leftNode != null && leftNode.size >= this.nodeSize) {
             // Steal biggest node in the left node.
             let biggestNode = await this.biggestNode(leftNode);
+            if (biggestNode == null) {
+              throw new Error('There is no biggest node available; this is' +
+                ' not supposed to happen');
+            }
             let biggest = biggestNode.keys.pop();
             let biggestData = biggestNode.data.pop();
             let dataId = node.data[position];
@@ -254,6 +260,10 @@ export default class BTree<Key, Value> {
           } else if (rightNode != null && rightNode.size >= this.nodeSize) {
             // Steal smallest node in the right node.
             let smallestNode = await this.smallestNode(rightNode);
+            if (smallestNode == null) {
+              throw new Error('There is no smallest node available; this is' +
+                ' not supposed to happen');
+            }
             let smallest = smallestNode.keys.shift();
             let smallestData = smallestNode.data.shift();
             let dataId = node.data[position];
@@ -292,8 +302,9 @@ export default class BTree<Key, Value> {
         return true;
       }
     }
+    return false;
   }
-  async get(key: Key): ?Value {
+  async get(key: Key): Promise<?Value> {
     // Start from the root node, locate the key by descending into the value;
     let node = await this.readRoot();
     while (node != null) {
@@ -308,7 +319,7 @@ export default class BTree<Key, Value> {
     // Failed!
     return null;
   }
-  async split(node: Node, pos: number = 0): Node {
+  async split(node: Node<Key>, pos: number = 0): Promise<Node<Key>> {
     // Split works by slicing the children and putting the splited nodes
     // in right place.
     // A---+---B
@@ -361,7 +372,7 @@ export default class BTree<Key, Value> {
     ]);
     return node;
   }
-  async smallestNode(topNode: ?Node): ?Node {
+  async smallestNode(topNode: ?Node<Key>): Promise<?Node<Key>> {
     // Just navigate to smallest node, easy!
     let node = topNode || await this.readRoot();
     while (node != null && !node.leaf) {
@@ -369,7 +380,7 @@ export default class BTree<Key, Value> {
     }
     return node;
   }
-  async biggestNode(topNode: ?Node): ?Node {
+  async biggestNode(topNode: ?Node<Key>): Promise<?Node<Key>> {
     // Just navigate to biggest node, easy!
     let node = topNode || await this.readRoot();
     while (node != null && !node.leaf) {
@@ -377,12 +388,12 @@ export default class BTree<Key, Value> {
     }
     return node;
   }
-  async smallest(topNode: ?Node): ?Key {
+  async smallest(topNode: ?Node<Key>): Promise<?Key> {
     let node = await this.smallestNode(topNode);
     if (node == null) return null;
     return node.keys[0];
   }
-  async biggest(topNode: ?Node): ?Key {
+  async biggest(topNode: ?Node<Key>): Promise<?Key> {
     let node = await this.biggestNode(topNode);
     if (node == null) return null;
     return node.keys[node.size - 1];
@@ -394,34 +405,34 @@ export default class BTree<Key, Value> {
       // regular B-Tree, so let's just use a stack.
       let rootNode = await this.readRoot();
       if (rootNode == null) return;
-      let stack = [rootNode, rootNode.size];
+      let stack = [[rootNode, rootNode.size]];
       while (stack.length > 0) {
-        let node = stack[stack.length - 2];
-        let pos = stack[stack.length - 1] --;
+        let stackEntry = stack[stack.length - 1];
+        let node = stackEntry[0];
+        let pos = stackEntry[1] --;
         if (pos !== node.size) yield await this.io.readData(node.data[pos]);
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
           if (pos === 0) {
             // Do TCO if this node is last children of the node
             let newNode = await this.io.read(node.children[pos]);
-            stack[stack.length - 2] = newNode;
-            stack[stack.length - 1] = newNode.size;
+            stack[stack.length - 1] = [newNode, newNode.size];
           } else {
             // Otherwise, just push.
             let newNode = await this.io.read(node.children[pos]);
-            stack.push(newNode);
-            stack.push(newNode.size);
+            stack.push([newNode, newNode.size]);
           }
         } else if (pos === 0) {
           // Escape if finished.
           stack.pop();
-          stack.pop();
         }
       }
     }).call(this);
+    // $FlowFixMe
     iter[Symbol.asyncIterator] = () => iter;
     return iter;
   }
+  // $FlowFixMe
   [Symbol.asyncIterator]() {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
@@ -434,32 +445,37 @@ export default class BTree<Key, Value> {
       // regular B-Tree, so let's just use a stack.
       let rootNode = await this.readRoot();
       if (rootNode == null) return;
-      let stack = [rootNode, 0];
+      let stack = [[rootNode, 0]];
       while (stack.length > 0) {
-        let node = stack[stack.length - 2];
-        let pos = stack[stack.length - 1] ++;
+        let stackEntry = stack[stack.length - 1];
+        let node = stackEntry[0];
+        let pos = stackEntry[1] ++;
         if (pos !== 0) yield await this.io.readData(node.data[pos - 1]);
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
           if (pos >= node.size) {
             // Do TCO if this node is last children of the node
-            stack[stack.length - 2] = await this.io.read(node.children[pos]);
-            stack[stack.length - 1] = 0;
+            stack[stack.length - 1] = [
+              await this.io.read(node.children[pos]),
+              0,
+            ];
           } else {
             // Otherwise, just push.
-            stack.push(await this.io.read(node.children[pos]));
-            stack.push(0);
+            stack.push([
+              await this.io.read(node.children[pos]),
+              0,
+            ]);
           }
         } else if (pos >= node.size) {
           // Escape if finished.
-          stack.pop();
           stack.pop();
         }
       }
     }).call(this);
   }
-  async traverse(callback: Function): void {
+  async traverse(callback: Function): Promise<void> {
     // For await loops doesn't work well for now - just call iterator directly.
+    // $FlowFixMe
     const iterator = this[Symbol.asyncIterator]();
     while (true) {
       const { value, done } = await iterator.next();
