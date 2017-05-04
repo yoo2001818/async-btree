@@ -299,7 +299,7 @@ export default class BTree<Key, Value> {
     while (node != null) {
       // Try to locate where to go.
       let { position, exact } = node.locate(key, this.comparator);
-      if (exact) return await this.io.readData(node.data[position]);
+      if (exact) return this.io.readData(node.data[position]);
       // If not matched, go down to right child
       // But this fails in leaf node, so just mark it as a failure
       if (node.leaf) return null;
@@ -389,7 +389,7 @@ export default class BTree<Key, Value> {
   }
   reverseIterator() {
     // Reverse version of asyncIterator.
-    let iter = (async function* () { // eslint-disable-line no-extra-parens
+    let iter = (async function * () { // eslint-disable-line no-extra-parens
       // This can be greatly simplified in B+Tree, however, this is just a
       // regular B-Tree, so let's just use a stack.
       let rootNode = await this.readRoot();
@@ -429,7 +429,7 @@ export default class BTree<Key, Value> {
     // However again, eslint's error conflicts if we try to call 'call'
     // with IIFE, so use eslint-disable-line to workaround this too.
     // Why so complicated? It's not in the spec yet.
-    return (async function* () { // eslint-disable-line no-extra-parens
+    return (async function * () { // eslint-disable-line no-extra-parens
       // This can be greatly simplified in B+Tree, however, this is just a
       // regular B-Tree, so let's just use a stack.
       let rootNode = await this.readRoot();
