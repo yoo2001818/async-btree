@@ -1,23 +1,9 @@
 // @flow
 // A asynchronous B-Tree implementation.
 import Node from './node';
+import type { Tree, IOInterface } from './type';
 
-interface IOInterface<Key, Value> {
-  getRoot(): Promise<any>;
-  writeRoot(id: any): Promise<any>;
-  // Node section
-  read(id: any): Promise<Node<Key>>;
-  write(id: any, node: Node<Key>): Promise<any>;
-  remove(id: any): Promise<void>;
-  allocate(node: Node<Key>): Promise<any>;
-  // Data section
-  readData(id: any): Promise<Value>;
-  writeData(id: any, node: Value): Promise<any>;
-  removeData(id: any): Promise<void>;
-  allocateData(node: Value): Promise<any>;
-}
-
-export default class BTree<Key, Value> {
+export default class BTree<Key, Value> implements Tree<Key, Value> {
   nodeSize: number;
   comparator: (a: Key, b: Key) => number;
   root: Node<Key>;
@@ -37,7 +23,7 @@ export default class BTree<Key, Value> {
       return this.io.read(id);
     });
   }
-  async insert(key: Key, data: Value): Promise<BTree<Key, Value>> {
+  async insert(key: Key, data: Value): Promise<Tree<Key, Value>> {
     let node = await this.readRoot();
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
@@ -428,8 +414,6 @@ export default class BTree<Key, Value> {
         }
       }
     }).call(this);
-    // $FlowFixMe
-    iter[Symbol.asyncIterator] = () => iter;
     return iter;
   }
   // $FlowFixMe
