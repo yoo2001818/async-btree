@@ -1,9 +1,9 @@
 import spreadAsyncIterable from './util/spreadAsyncIterable';
 
-export default function test(getBTree) {
+export default function test(getTree) {
   let btree;
   beforeEach(() => {
-    btree = getBTree();
+    btree = getTree();
   });
   describe('#insert', () => {
     it('should return itself', async () => {

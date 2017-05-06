@@ -1,7 +1,7 @@
 import BTree from './btree';
 import { N } from './node';
 import spreadAsyncIterable from './util/spreadAsyncIterable';
-import test from './btree.test.common';
+import test from './tree.test.common';
 
 describe('BTree', () => {
   // Use direct I/O without using IDs for ease of debugging
