@@ -86,4 +86,135 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
     return this;
   }
+  async split(node: Node<Key>, pos: number = 0): Promise<Node<Key>> {
+    // Split works by slicing the children and putting the splited nodes
+    // in right place.
+    // A---+---B
+    //   C-D-E
+    // The procedure is similar to B-Tree, however, B+Tree doesn't remove
+    // values from children. Instead, it copies smallest key from right child.
+    // Thus it'd be splited into something like this:
+    // A-+-E-+-B
+    //  C-D  E
+    let child = await this.io.read(node.children[pos]);
+
+    // Push parent's keys / children to right to make a space to insert the
+    // nodes.
+    for (let i = node.size + 1; i > pos + 1; --i) {
+      node.children[i] = node.children[i - 1];
+    }
+    for (let i = node.size; i > pos; --i) {
+      node.keys[i] = node.keys[i - 1];
+      node.data[i] = node.data[i - 1];
+    }
+
+    // Create right node by slicing the data from the child.
+    let right = new Node(undefined, child.size - this.nodeSize + 1,
+      child.keys.slice(this.nodeSize - 1),
+      child.data.slice(this.nodeSize - 1),
+      child.children.slice(this.nodeSize - 1),
+      child.leaf
+    );
+    // Fetch the center key.
+    let center = child.keys[this.nodeSize - 1];
+    let centerData = child.data[this.nodeSize - 1];
+    // Resize the left node.
+    child.size = this.nodeSize - 1;
+    child.keys.length = this.nodeSize - 1;
+    child.data.length = this.nodeSize - 1;
+    child.children.length = this.nodeSize;
+
+    // Save the left / right node.
+    right.id = await this.io.allocate(right);
+    node.children[pos + 1] = right.id;
+    node.keys[pos] = center;
+    node.data[pos] = centerData;
+    node.size = node.size + 1;
+    node.leaf = false;
+    await Promise.all([
+      this.io.write(right.id, right),
+      this.io.write(child.id, child),
+      this.io.write(node.id, node),
+    ]);
+    return node;
+  }
+  async toString() {
+    let result = '';
+    let rootNode = await this.readRoot();
+    if (rootNode == null) return;
+    let stack = [[rootNode, 0]];
+    while (stack.length > 0) {
+      let stackEntry = stack[stack.length - 1];
+      let node = stackEntry[0];
+      let pos = stackEntry[1] ++;
+      if (pos !== 0) {
+        for (let i = 0; i < stack.length; ++i) {
+          result += '  ';
+        }
+        result += await this.io.readData(node.data[pos - 1]);
+        result += '\n';
+      }
+      // Step into descending node...
+      if (!node.leaf && node.children[pos] != null) {
+        if (pos >= node.size) {
+          // Do TCO if this node is last children of the node
+          stack[stack.length - 1] = [
+            await this.io.read(node.children[pos]),
+            0,
+          ];
+        } else {
+          // Otherwise, just push.
+          stack.push([
+            await this.io.read(node.children[pos]),
+            0,
+          ]);
+        }
+      } else if (pos >= node.size) {
+        // Escape if finished.
+        stack.pop();
+      }
+    }
+    return result;
+  }
+  // $FlowFixMe
+  [Symbol.asyncIterator]() {
+    // Use IIFE to workaround the lack of class async functions.
+    // However, there is no generator arrow functions, we need to workaround
+    // around this object too.
+    // However again, eslint's error conflicts if we try to call 'call'
+    // with IIFE, so use eslint-disable-line to workaround this too.
+    // Why so complicated? It's not in the spec yet.
+    return (async function * () { // eslint-disable-line no-extra-parens
+      // This can be greatly simplified in B+Tree, however, this is just a
+      // regular B-Tree, so let's just use a stack.
+      let rootNode = await this.readRoot();
+      if (rootNode == null) return;
+      let stack = [[rootNode, 0]];
+      while (stack.length > 0) {
+        let stackEntry = stack[stack.length - 1];
+        let node = stackEntry[0];
+        let pos = stackEntry[1] ++;
+        if (pos !== 0) yield await this.io.readData(node.data[pos - 1]);
+        // Step into descending node...
+        if (!node.leaf && node.children[pos] != null) {
+          if (pos >= node.size) {
+            // Do TCO if this node is last children of the node
+            stack[stack.length - 1] = [
+              await this.io.read(node.children[pos]),
+              0,
+            ];
+          } else {
+            // Otherwise, just push.
+            stack.push([
+              await this.io.read(node.children[pos]),
+              0,
+            ]);
+          }
+        } else if (pos >= node.size) {
+          // Escape if finished.
+          stack.pop();
+        }
+      }
+    }).call(this);
+  }
 }

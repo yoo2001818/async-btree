@@ -1,6 +1,6 @@
 import BTree from './btree';
 import MemoryIO from './memoryIO';
-import test from './btree.test.common';
+import test from './tree.test.common';
 
 describe('MemoryIO', () => {
   let btree;

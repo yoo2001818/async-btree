@@ -29,6 +29,9 @@ export default class Node<Key> {
   // Childrens usually store filesystem's key - however - direct values can
   // be stored too. IOInterface should handle this then.
   children: any[];
+  // Stores left - right relation for B+Tree.
+  left: any;
+  right: any;
   leaf: boolean;
   constructor(id: any, size: number, keys: Key[], data: any[],
     children: any[], leaf: boolean) {

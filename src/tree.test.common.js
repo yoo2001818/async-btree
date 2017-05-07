@@ -30,6 +30,7 @@ export default function test(getTree) {
       for (let i = 0; i < 100; ++i) {
         expect(await btree.insert(arr[i], arr[i])).toBe(btree);
       }
+      if (btree.toString) console.log(await btree.toString());
       expect(await spreadAsyncIterable(btree)).toEqual(answer);
     });
   });
