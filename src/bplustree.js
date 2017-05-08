@@ -109,15 +109,27 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
 
     // Create right node by slicing the data from the child.
-    let right = new Node(undefined, child.size - this.nodeSize + 1,
-      child.keys.slice(this.nodeSize - 1),
-      child.data.slice(this.nodeSize - 1),
-      child.children.slice(this.nodeSize - 1),
-      child.leaf
-    );
+    // If leaf node, duplicate middle node. But non-leaf node should perform
+    // exactly like B-Tree.
+    let right;
+    if (child.leaf) {
+      right = new Node(undefined, child.size - this.nodeSize + 1,
+        child.keys.slice(this.nodeSize - 1),
+        child.data.slice(this.nodeSize - 1),
+        child.children.slice(this.nodeSize - 1),
+        child.leaf
+      );
+    } else {
+      right = new Node(undefined, child.size - this.nodeSize,
+        child.keys.slice(this.nodeSize),
+        child.data.slice(this.nodeSize),
+        child.children.slice(this.nodeSize),
+        child.leaf
+      );
+    }
     // Fetch the center key.
-    let center = child.keys[this.nodeSize - 1];
-    let centerData = child.data[this.nodeSize - 1];
+    let center = child.keys[this.nodeSize - 1]; 
+    let centerData = child.data[this.nodeSize - 1]; 
     // Resize the left node.
     child.size = this.nodeSize - 1;
     child.keys.length = this.nodeSize - 1;
@@ -138,6 +150,32 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     ]);
     return node;
   }
+  async smallestNode(topNode: ?Node<Key>): Promise<?Node<Key>> {
+    // Just navigate to smallest node, easy!
+    let node = topNode || await this.readRoot();
+    while (node != null && !node.leaf) {
+      node = await this.io.read(node.children[0]);
+    }
+    return node;
+  }
+  async biggestNode(topNode: ?Node<Key>): Promise<?Node<Key>> {
+    // Just navigate to biggest node, easy!
+    let node = topNode || await this.readRoot();
+    while (node != null && !node.leaf) {
+      node = await this.io.read(node.children[node.size]);
+    }
+    return node;
+  }
+  async smallest(topNode: ?Node<Key>): Promise<?Key> {
+    let node = await this.smallestNode(topNode);
+    if (node == null) return null;
+    return node.keys[0];
+  }
+  async biggest(topNode: ?Node<Key>): Promise<?Key> {
+    let node = await this.biggestNode(topNode);
+    if (node == null) return null;
+    return node.keys[node.size - 1];
+  }
   async toString() {
     let result = '';
     let rootNode = await this.readRoot();
@@ -147,31 +185,23 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       let stackEntry = stack[stack.length - 1];
       let node = stackEntry[0];
       let pos = stackEntry[1] ++;
+      if (pos > node.size) {
+        stack.pop();
+        continue;
+      }
       if (pos !== 0) {
-        for (let i = 0; i < stack.length; ++i) {
-          result += '  ';
+        for (let i = 1; i < stack.length; ++i) {
+          result += '| ';
         }
         result += await this.io.readData(node.data[pos - 1]);
         result += '\n';
       }
       // Step into descending node...
       if (!node.leaf && node.children[pos] != null) {
-        if (pos >= node.size) {
-          // Do TCO if this node is last children of the node
-          stack[stack.length - 1] = [
-            await this.io.read(node.children[pos]),
-            0,
-          ];
-        } else {
-          // Otherwise, just push.
-          stack.push([
-            await this.io.read(node.children[pos]),
-            0,
-          ]);
-        }
-      } else if (pos >= node.size) {
-        // Escape if finished.
-        stack.pop();
+        stack.push([
+          await this.io.read(node.children[pos]),
+          0,
+        ]);
       }
     }
     return result;
