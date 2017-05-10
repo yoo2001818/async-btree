@@ -128,13 +128,20 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       );
     }
     // Fetch the center key.
-    let center = child.keys[this.nodeSize - 1]; 
-    let centerData = child.data[this.nodeSize - 1]; 
+    let center = child.keys[this.nodeSize - 1];
+    let centerData = child.data[this.nodeSize - 1];
     // Resize the left node.
     child.size = this.nodeSize - 1;
     child.keys.length = this.nodeSize - 1;
     child.data.length = this.nodeSize - 1;
     child.children.length = this.nodeSize;
+
+    // If the child node is leaf node, set up left / right to link each other.
+    if (child.leaf) {
+      right.left = child.id;
+      right.right = child.right;
+      child.right = right.id;
+    }
 
     // Save the left / right node.
     right.id = await this.io.allocate(right);
