@@ -135,7 +135,8 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     child.keys.length = this.nodeSize - 1;
     child.data.length = this.nodeSize - 1;
     child.children.length = this.nodeSize;
-
+    // Assign the right node's ID.
+    right.id = await this.io.allocate(right);
     // If the child node is leaf node, set up left / right to link each other.
     if (child.leaf) {
       right.left = child.id;
@@ -144,7 +145,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
 
     // Save the left / right node.
-    right.id = await this.io.allocate(right);
     node.children[pos + 1] = right.id;
     node.keys[pos] = center;
     node.data[pos] = centerData;
@@ -222,35 +222,22 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     // with IIFE, so use eslint-disable-line to workaround this too.
     // Why so complicated? It's not in the spec yet.
     return (async function * () { // eslint-disable-line no-extra-parens
-      // This can be greatly simplified in B+Tree, however, this is just a
-      // regular B-Tree, so let's just use a stack.
-      let rootNode = await this.readRoot();
-      if (rootNode == null) return;
-      let stack = [[rootNode, 0]];
-      while (stack.length > 0) {
-        let stackEntry = stack[stack.length - 1];
-        let node = stackEntry[0];
-        let pos = stackEntry[1] ++;
-        if (pos !== 0) yield await this.io.readData(node.data[pos - 1]);
-        // Step into descending node...
-        if (!node.leaf && node.children[pos] != null) {
-          if (pos >= node.size) {
-            // Do TCO if this node is last children of the node
-            stack[stack.length - 1] = [
-              await this.io.read(node.children[pos]),
-              0,
-            ];
-          } else {
-            // Otherwise, just push.
-            stack.push([
-              await this.io.read(node.children[pos]),
-              0,
-            ]);
-          }
-        } else if (pos >= node.size) {
-          // Escape if finished.
-          stack.pop();
+      let node = await this.smallestNode();
+      while (node != null) {
+        // Unlike B-Tree traversal, B+Tree traversal doesn't need any stack.
+        // Simply get the smallest node and traverse using left/right links.
+        let getNext;
+        if (node.right != null) {
+          getNext = this.io.read(node.right);
+        } else {
+          getNext = Promise.resolve(null);
         }
+        // Then, load all the data at once.
+        let getDatas = node.data.map(v => this.io.readData(v));
+        for (let i = 0; i < getDatas.length; ++i) {
+          yield await getDatas[i];
+        }
+        node = await getNext;
       }
     }).call(this);
   }
