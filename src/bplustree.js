@@ -213,6 +213,28 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
     return result;
   }
+  reverseIterator() {
+    // Reversed version of asyncIterator.
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let node = await this.biggestNode();
+      while (node != null) {
+        // Unlike B-Tree traversal, B+Tree traversal doesn't need any stack.
+        // Simply get the smallest node and traverse using left/right links.
+        let getNext;
+        if (node.left != null) {
+          getNext = this.io.read(node.left);
+        } else {
+          getNext = Promise.resolve(null);
+        }
+        // Then, load all the data at once.
+        let getDatas = node.data.map(v => this.io.readData(v));
+        for (let i = getDatas.length - 1; i >= 0; --i) {
+          yield await getDatas[i];
+        }
+        node = await getNext;
+      }
+    }).call(this);
+  }
   // $FlowFixMe
   [Symbol.asyncIterator]() {
     // Use IIFE to workaround the lack of class async functions.
@@ -240,5 +262,15 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         node = await getNext;
       }
     }).call(this);
+  }
+  async traverse(callback: Function): Promise<void> {
+    // For await loops doesn't work well for now - just call iterator directly.
+    // $FlowFixMe
+    const iterator = this[Symbol.asyncIterator]();
+    while (true) {
+      const { value, done } = await iterator.next();
+      if (done) break;
+      callback(value);
+    }
   }
 }

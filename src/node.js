@@ -22,7 +22,7 @@ export function N<Key>(keys: Key[], children: ?Node<Key>[]): Node<Key> {
       children[i].right = children[i + 1];
     }
   }
-  return new Node(undefined, keys.length, keys, keys, children,
+  return new Node(undefined, keys.length, keys, keys, children || [],
     children == null);
 }
 
