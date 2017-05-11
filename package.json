@@ -6,6 +6,7 @@
   "scripts": {
     "test": "npm run jest && npm run flow && npm run lint",
     "jest": "jest",
+    "jestWatch": "jest --watch --notify",
     "flow": "flow",
     "lint": "eslint src/",
     "build": "babel src -d lib --copy-files"

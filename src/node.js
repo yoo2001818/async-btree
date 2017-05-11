@@ -15,7 +15,13 @@ export class LocateResult {
   }
 }
 
-export function N<Key>(keys: Key[], children: any[]): Node<Key> {
+export function N<Key>(keys: Key[], children: ?Node<Key>[]): Node<Key> {
+  if (children != null) {
+    for (let i = 0; i < children.length; ++i) {
+      children[i].left = children[i - 1];
+      children[i].right = children[i + 1];
+    }
+  }
   return new Node(undefined, keys.length, keys, keys, children,
     children == null);
 }

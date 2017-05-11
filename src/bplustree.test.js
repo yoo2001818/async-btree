@@ -25,10 +25,10 @@ describe('BPlusTree', () => {
   describe('#reverseIterator', () => {
     beforeEach(() => {
       // Overwrite root node.
-      rootNode = N([3, 5], [
-        N([1, 2]),
-        N([4]),
-        N([8], [N([6, 7]), N([9])]),
+      rootNode = N([4, 7], [
+        N([1, 2, 3]),
+        N([4, 5, 6]),
+        N([7, 8, 9]),
       ]);
     });
     it('should traverse the tree in-order', async () => {
@@ -39,10 +39,10 @@ describe('BPlusTree', () => {
   describe('#@@asyncIterator', () => {
     beforeEach(() => {
       // Overwrite root node.
-      rootNode = N([3, 5], [
-        N([1, 2]),
-        N([4]),
-        N([8], [N([6, 7]), N([9])]),
+      rootNode = N([4, 7], [
+        N([1, 2, 3]),
+        N([4, 5, 6]),
+        N([7, 8, 9]),
       ]);
     });
     it('should traverse the tree in-order', async () => {
@@ -53,10 +53,10 @@ describe('BPlusTree', () => {
   describe('#traverse', () => {
     beforeEach(() => {
       // Overwrite root node.
-      rootNode = N([3, 5], [
-        N([1, 2]),
-        N([4]),
-        N([8], [N([6, 7]), N([9])]),
+      rootNode = N([4, 7], [
+        N([1, 2, 3]),
+        N([4, 5, 6]),
+        N([7, 8, 9]),
       ]);
     });
     it('should traverse the tree in-order', async () => {
