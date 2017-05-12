@@ -86,6 +86,22 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
     return this;
   }
+  async get(key: Key): Promise<?Value> {
+    // Start from the root node, locate the key by descending into the value;
+    let node = await this.readRoot();
+    while (node != null) {
+      // Try to locate where to go.
+      let { position, exact } = node.locate(key, this.comparator);
+      if (node.leaf) {
+        if (exact) return this.io.readData(node.data[position]);
+        else return null;
+      } else {
+        node = await this.io.read(node.children[position + (exact ? 1 : 0)]);
+      }
+    }
+    // Failed!
+    return null;
+  }
   async split(node: Node<Key>, pos: number = 0): Promise<Node<Key>> {
     // Split works by slicing the children and putting the splited nodes
     // in right place.
