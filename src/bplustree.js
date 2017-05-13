@@ -86,6 +86,20 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
     return this;
   }
+  async remove(key: Key): Promise<boolean> {
+    let node = await this.readRoot();
+    // No more than N keys and son of the root of one key:
+    //  Other son of the root has more than n keys:
+    //    Shift key without catenation
+    //  No more than N keys:
+    //    Merge the sons to make new root with 2n-1 - 2n+1 keys
+    // N or N-1 key non-root node is encountered:
+    //   Catenate with neighbor if the neighbor has n or n-1 keys
+    //   If it has more than N keys, transfer keys from neighbor without
+    //   catenation
+    // After reaching the leaf node, remove the key from the node.
+    throw new Error('Not implemented');
+  }
   async get(key: Key): Promise<?Value> {
     // Start from the root node, locate the key by descending into the value;
     let node = await this.readRoot();
