@@ -98,7 +98,136 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     //   If it has more than N keys, transfer keys from neighbor without
     //   catenation
     // After reaching the leaf node, remove the key from the node.
-    throw new Error('Not implemented');
+    while (node != null) {
+      // First, we need to locate where the key would be, and descend while
+      // performing rebalancing logic.
+      let { position, exact } = node.locate(key, this.comparator);
+      if (node.leaf) {
+        if (!exact) return false;
+        // If this is a leaf node, we can safely remove it from the keys.
+        // The end.
+        let dataId = node.data[position];
+        node.keys.splice(position, 1);
+        node.data.splice(position, 1);
+        node.size --;
+        await Promise.all([
+          this.io.write(node.id, node),
+          this.io.removeData(dataId),
+        ]);
+        return true;
+      } else {
+        // Locate the children...
+        if (exact) position += 1;
+        let childNode = await this.io.read(node.children[position]);
+        if (childNode.size <= this.nodeSize) {
+          // Find the neighbor with more than n keys...
+          let [leftNode, rightNode] = await Promise.all([
+            this.io.read(node.children[position - 1]),
+            this.io.read(node.children[position + 1]),
+          ]);
+          if (leftNode && leftNode.size >= this.nodeSize) {
+            // Steal a key from left node.
+            //   +----C----+
+            // A-+-B     D-+-E
+            // --->
+            //   +----B----+
+            //   A       C-D-E
+            childNode.keys.unshift(node.keys[position]);
+            childNode.data.unshift(node.data[position]);
+            childNode.size ++;
+            // Since same level of nodes are always same, we can just look for
+            // leftNode's validity.
+            if (!leftNode.leaf) {
+              let childrenAdd = leftNode.children.pop();
+              if (childrenAdd != null) childNode.children.unshift(childrenAdd);
+            }
+            node.keys[position] = leftNode.keys.pop();
+            node.data[position] = leftNode.data.pop();
+            leftNode.size --;
+            // Save all of them.
+            await Promise.all([
+              this.io.write(node.id, node),
+              this.io.write(childNode.id, childNode),
+              this.io.write(leftNode.id, leftNode),
+            ]);
+          } else if (rightNode && rightNode.size >= this.nodeSize) {
+            // Steal a key from right node.
+            //   +----C----+
+            // A-+-B     D-+-E
+            // --->
+            //   +----D----+
+            // A-B-C       E
+            childNode.keys.push(node.keys[position]);
+            childNode.data.push(node.data[position]);
+            childNode.size ++;
+            // Since same level of nodes are always same, we can just look for
+            // leftNode's validity.
+            if (!rightNode.leaf) {
+              let childrenAdd = rightNode.children.shift();
+              if (childrenAdd != null) childNode.children.push(childrenAdd);
+            }
+            node.keys[position] = rightNode.keys.shift();
+            node.data[position] = rightNode.data.shift();
+            rightNode.size --;
+            // Save all of them.
+            await Promise.all([
+              this.io.write(node.id, node),
+              this.io.write(childNode.id, childNode),
+              this.io.write(rightNode.id, rightNode),
+            ]);
+          } else {
+            // If both sibling nodes don't have insufficient keys, merge the
+            // child node with one of the sibling node.
+            let mergeLeft, mergeRight, offset, siblingOffset;
+            if (leftNode) {
+              mergeLeft = leftNode;
+              mergeRight = childNode;
+              offset = -1;
+              siblingOffset = 0;
+            } else if (rightNode) {
+              mergeLeft = childNode;
+              mergeRight = rightNode;
+              offset = 0;
+              siblingOffset = 1;
+            } else {
+              throw new Error('There is no left / right node while removing.');
+            }
+            mergeLeft.keys.push(node.keys[position + offset]);
+            mergeLeft.data.push(node.data[position + offset]);
+            mergeRight.keys.forEach(v => mergeLeft.keys.push(v));
+            mergeRight.data.forEach(v => mergeLeft.data.push(v));
+            mergeRight.children.forEach((v, k) => {
+              mergeLeft.children[mergeLeft.size + k + 1] = v;
+            });
+            mergeLeft.size += mergeRight.size + 1;
+            // Remove mergeRight from disk.
+            node.keys.splice(position + offset, 1);
+            node.children.splice(position + siblingOffset, 1);
+            node.size --;
+            // If no key is left in current node, it means that root node
+            // is now obsolete; shift the root node.
+            if (node.keys.length === 0) {
+              await Promise.all([
+                this.io.remove(node.id),
+                this.io.writeRoot(mergeLeft.id),
+                this.io.write(mergeLeft.id, mergeLeft),
+                this.io.remove(mergeRight.id),
+              ]);
+            } else {
+              await Promise.all([
+                this.io.write(node.id, node),
+                this.io.write(mergeLeft.id, mergeLeft),
+                this.io.remove(mergeRight.id),
+              ]);
+            }
+            node = mergeLeft;
+            continue;
+          }
+        }
+        node = childNode;
+        continue;
+      }
+    }
   }
   async get(key: Key): Promise<?Value> {
     // Start from the root node, locate the key by descending into the value;
