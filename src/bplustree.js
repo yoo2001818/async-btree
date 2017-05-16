@@ -88,6 +88,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
   }
   async remove(key: Key): Promise<boolean> {
     let node = await this.readRoot();
+    let isRoot = node.size === 1;
     // No more than N keys and son of the root of one key:
     //  Other son of the root has more than n keys:
     //    Shift key without catenation
@@ -125,50 +126,58 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             this.io.read(node.children[position - 1]),
             this.io.read(node.children[position + 1]),
           ]);
-          if (leftNode && leftNode.size >= this.nodeSize) {
-            // Steal a key from left node.
-            //   +----C----+
-            // A-+-B     D-+-E
+          if (leftNode && leftNode.size > this.nodeSize) {
+            // Steal two keys from the left node.
+            //   +----D----+
+            // A-B-C       E
+            //1 2 3 4     5 6
             // --->
             //   +----B----+
             //   A       C-D-E
-            childNode.keys.unshift(node.keys[position]);
-            childNode.data.unshift(node.data[position]);
-            childNode.size ++;
+            //  1 2     3 4 5 6
+            childNode.keys.unshift(leftNode.keys.pop(), node.keys[position]);
+            childNode.data.unshift(leftNode.data.pop(), node.data[position]);
+            childNode.size += 2;
             // Since same level of nodes are always same, we can just look for
             // leftNode's validity.
             if (!leftNode.leaf) {
               let childrenAdd = leftNode.children.pop();
               if (childrenAdd != null) childNode.children.unshift(childrenAdd);
+              childrenAdd = leftNode.children.pop();
+              if (childrenAdd != null) childNode.children.unshift(childrenAdd);
             }
             node.keys[position] = leftNode.keys.pop();
             node.data[position] = leftNode.data.pop();
-            leftNode.size --;
+            leftNode.size -= 2;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
               this.io.write(childNode.id, childNode),
               this.io.write(leftNode.id, leftNode),
             ]);
-          } else if (rightNode && rightNode.size >= this.nodeSize) {
-            // Steal a key from right node.
-            //   +----C----+
-            // A-+-B     D-+-E
-            // --->
+          } else if (rightNode && rightNode.size > this.nodeSize) {
+            // Steal two keys from right node.
+            //   +----B----+
+            //   A       C-D-E
+            //  1 2     3 4 5 6
+            //            <---
             //   +----D----+
             // A-B-C       E
-            childNode.keys.push(node.keys[position]);
-            childNode.data.push(node.data[position]);
-            childNode.size ++;
+            //1 2 3 4     5 6
+            childNode.keys.push(rightNode.keys.shift(), node.keys[position]);
+            childNode.data.push(rightNode.data.shift(), node.data[position]);
+            childNode.size += 2;
             // Since same level of nodes are always same, we can just look for
-            // leftNode's validity.
+            // rightNode's validity.
             if (!rightNode.leaf) {
               let childrenAdd = rightNode.children.shift();
+              if (childrenAdd != null) childNode.children.push(childrenAdd);
+              childrenAdd = rightNode.children.shift();
               if (childrenAdd != null) childNode.children.push(childrenAdd);
             }
             node.keys[position] = rightNode.keys.shift();
             node.data[position] = rightNode.data.shift();
-            rightNode.size --;
+            rightNode.size -= 2;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
@@ -220,10 +229,12 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
                 this.io.remove(mergeRight.id),
               ]);
             }
+            isRoot = false;
             node = mergeLeft;
             continue;
           }
         }
+        isRoot = false;
         node = childNode;
         continue;
       }

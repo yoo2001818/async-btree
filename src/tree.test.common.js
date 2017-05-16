@@ -36,6 +36,7 @@ export default function test(getTree) {
   describe('#remove', () => {
     it('should remove node 0 to 9', async () => {
       for (let i = 0; i < 10; ++i) await btree.insert(i, i);
+      if (btree.toString) console.log(await btree.toString());
       for (let i = 0; i < 9; ++i) {
         expect(await btree.remove(i)).toBe(true);
         if (btree.toString) console.log(await btree.toString());
