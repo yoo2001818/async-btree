@@ -207,6 +207,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
               mergeLeft.children[mergeLeft.size + k] = v;
             });
             mergeLeft.size += mergeRight.size;
+            mergeLeft.right = mergeRight.right;
             // Remove mergeRight from disk.
             node.keys.splice(position + offset, 1);
             node.data.splice(position + offset, 1);
