@@ -1,7 +1,7 @@
 export default async function spreadAsyncIterable(iterable) {
   let iterator;
   if (iterable[Symbol.asyncIterator]) {
-    iterator = iterable[Symbol.asyncIterator].call(iterable);
+    iterator = iterable[Symbol.asyncIterator]();
   } else {
     iterator = iterable;
   }
