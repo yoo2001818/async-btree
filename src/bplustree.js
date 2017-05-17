@@ -102,7 +102,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       // First, we need to locate where the key would be, and descend while
       // performing rebalancing logic.
       let { position, exact } = node.locate(key, this.comparator);
-      console.log(node.keys);
       if (node.leaf) {
         if (!exact) return false;
         // If this is a leaf node, we can safely remove it from the keys.
@@ -135,20 +134,18 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             //    +----B----+
             //    A       C-D-E
             //   1 2     3 4 5 6
-            childNode.keys.unshift(leftNode.keys.pop(), node.keys[position]);
-            childNode.data.unshift(leftNode.data.pop(), node.data[position]);
-            childNode.size += 2;
+            childNode.keys.unshift(leftNode.keys.pop());
+            childNode.data.unshift(leftNode.data.pop());
+            childNode.size ++;
             // Since same level of nodes are always same, we can just look for
             // leftNode's validity.
             if (!leftNode.leaf) {
               let childrenAdd = leftNode.children.pop();
               if (childrenAdd != null) childNode.children.unshift(childrenAdd);
-              childrenAdd = leftNode.children.pop();
-              if (childrenAdd != null) childNode.children.unshift(childrenAdd);
             }
-            node.keys[position] = leftNode.keys.pop();
-            node.data[position] = leftNode.data.pop();
-            leftNode.size -= 2;
+            leftNode.size --;
+            node.keys[position] = leftNode.keys[leftNode.size];
+            node.data[position] = leftNode.data[leftNode.size];
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
@@ -156,28 +153,26 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
               this.io.write(leftNode.id, leftNode),
             ]);
           } else if (rightNode && rightNode.size > this.nodeSize) {
-            // Steal two keys from right node.
+            // Steal a key from right node, while overwritting root node.
             //    +----B----+
             //    A       C-D-E
             //   1 2     3 4 5 6
             //             <---
             //    +----D----+
-            //  A-B-C       E
-            // 1 2 3 4     5 6
-            childNode.keys.push(node.keys[position], rightNode.keys.shift());
-            childNode.data.push(node.data[position], rightNode.data.shift());
-            childNode.size += 2;
+            //   A-C       D-E
+            //  1 2 3     4 5 6
+            childNode.keys.push(rightNode.keys.shift());
+            childNode.data.push(rightNode.data.shift());
+            childNode.size ++;
             // Since same level of nodes are always same, we can just look for
             // rightNode's validity.
             if (!rightNode.leaf) {
               let childrenAdd = rightNode.children.shift();
               if (childrenAdd != null) childNode.children.push(childrenAdd);
-              childrenAdd = rightNode.children.shift();
-              if (childrenAdd != null) childNode.children.push(childrenAdd);
             }
-            node.keys[position] = rightNode.keys.shift();
-            node.data[position] = rightNode.data.shift();
-            rightNode.size -= 2;
+            node.keys[position] = rightNode.keys[0];
+            node.data[position] = rightNode.data[0];
+            rightNode.size --;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
@@ -241,6 +236,8 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         continue;
       }
     }
+    // This'll never happen though
+    return false;
   }
   async get(key: Key): Promise<?Value> {
     // Start from the root node, locate the key by descending into the value;
@@ -372,7 +369,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         for (let i = 1; i < stack.length; ++i) {
           result += '| ';
         }
-        result += await this.io.readData(node.data[pos - 1]);
+        result += String(await this.io.readData(node.data[pos - 1]));
         result += '\n';
       }
       // Step into descending node...
