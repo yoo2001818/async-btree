@@ -88,7 +88,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
   }
   async remove(key: Key): Promise<boolean> {
     let node = await this.readRoot();
-    let isRoot = node.size === 1;
     // No more than N keys and son of the root of one key:
     //  Other son of the root has more than n keys:
     //    Shift key without catenation
@@ -103,6 +102,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       // First, we need to locate where the key would be, and descend while
       // performing rebalancing logic.
       let { position, exact } = node.locate(key, this.comparator);
+      console.log(node.keys);
       if (node.leaf) {
         if (!exact) return false;
         // If this is a leaf node, we can safely remove it from the keys.
@@ -128,13 +128,13 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           ]);
           if (leftNode && leftNode.size > this.nodeSize) {
             // Steal two keys from the left node.
-            //   +----D----+
-            // A-B-C       E
-            //1 2 3 4     5 6
-            // --->
-            //   +----B----+
-            //   A       C-D-E
-            //  1 2     3 4 5 6
+            //    +----D----+
+            //  A-B-C       E
+            // 1 2 3 4     5 6
+            //  --->
+            //    +----B----+
+            //    A       C-D-E
+            //   1 2     3 4 5 6
             childNode.keys.unshift(leftNode.keys.pop(), node.keys[position]);
             childNode.data.unshift(leftNode.data.pop(), node.data[position]);
             childNode.size += 2;
@@ -157,15 +157,15 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             ]);
           } else if (rightNode && rightNode.size > this.nodeSize) {
             // Steal two keys from right node.
-            //   +----B----+
-            //   A       C-D-E
-            //  1 2     3 4 5 6
-            //            <---
-            //   +----D----+
-            // A-B-C       E
-            //1 2 3 4     5 6
-            childNode.keys.push(rightNode.keys.shift(), node.keys[position]);
-            childNode.data.push(rightNode.data.shift(), node.data[position]);
+            //    +----B----+
+            //    A       C-D-E
+            //   1 2     3 4 5 6
+            //             <---
+            //    +----D----+
+            //  A-B-C       E
+            // 1 2 3 4     5 6
+            childNode.keys.push(node.keys[position], rightNode.keys.shift());
+            childNode.data.push(node.data[position], rightNode.data.shift());
             childNode.size += 2;
             // Since same level of nodes are always same, we can just look for
             // rightNode's validity.
@@ -201,16 +201,20 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             } else {
               throw new Error('There is no left / right node while removing.');
             }
-            mergeLeft.keys.push(node.keys[position + offset]);
-            mergeLeft.data.push(node.data[position + offset]);
+            if (!mergeLeft.leaf) {
+              mergeLeft.keys.push(node.keys[position + offset]);
+              mergeLeft.data.push(node.data[position + offset]);
+              mergeLeft.size ++;
+            }
             mergeRight.keys.forEach(v => mergeLeft.keys.push(v));
             mergeRight.data.forEach(v => mergeLeft.data.push(v));
             mergeRight.children.forEach((v, k) => {
-              mergeLeft.children[mergeLeft.size + k + 1] = v;
+              mergeLeft.children[mergeLeft.size + k] = v;
             });
-            mergeLeft.size += mergeRight.size + 1;
+            mergeLeft.size += mergeRight.size;
             // Remove mergeRight from disk.
             node.keys.splice(position + offset, 1);
+            node.data.splice(position + offset, 1);
             node.children.splice(position + siblingOffset, 1);
             node.size --;
             // If no key is left in current node, it means that root node
@@ -229,12 +233,10 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
                 this.io.remove(mergeRight.id),
               ]);
             }
-            isRoot = false;
             node = mergeLeft;
             continue;
           }
         }
-        isRoot = false;
         node = childNode;
         continue;
       }
