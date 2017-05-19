@@ -2,7 +2,7 @@
   "name": "btree-js",
   "version": "0.1.0",
   "description": "B-tree implementation for Javascript",
-  "main": "index.js",
+  "main": "lib/index.js",
   "scripts": {
     "test": "npm run jest && npm run flow && npm run lint",
     "jest": "jest",

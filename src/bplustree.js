@@ -353,36 +353,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.size - 1];
   }
-  async toString() {
-    let result = '';
-    let rootNode = await this.readRoot();
-    if (rootNode == null) return;
-    let stack = [[rootNode, 0]];
-    while (stack.length > 0) {
-      let stackEntry = stack[stack.length - 1];
-      let node = stackEntry[0];
-      let pos = stackEntry[1] ++;
-      if (pos > node.size) {
-        stack.pop();
-        continue;
-      }
-      if (pos !== 0) {
-        for (let i = 1; i < stack.length; ++i) {
-          result += '| ';
-        }
-        result += String(await this.io.readData(node.data[pos - 1]));
-        result += '\n';
-      }
-      // Step into descending node...
-      if (!node.leaf && node.children[pos] != null) {
-        stack.push([
-          await this.io.read(node.children[pos]),
-          0,
-        ]);
-      }
-    }
-    return result;
-  }
   reverseIterator() {
     // Reversed version of asyncIterator.
     return (async function * () { // eslint-disable-line no-extra-parens
