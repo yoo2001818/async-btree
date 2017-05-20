@@ -256,6 +256,15 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     // Failed!
     return null;
   }
+  async getNode(key: Key): Promise<?Node<Key>> {
+    let node = await this.readRoot();
+    while (node != null && !node.leaf) {
+      // Try to locate where to go.
+      let { position, exact } = node.locate(key, this.comparator);
+      node = await this.io.read(node.children[position + (exact ? 1 : 0)]);
+    }
+    return node;
+  }
   async split(node: Node<Key>, pos: number = 0): Promise<Node<Key>> {
     // Split works by slicing the children and putting the splited nodes
     // in right place.
@@ -353,10 +362,18 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.size - 1];
   }
-  reverseIterator() {
+  reverseIterator(key: ?Key) {
     // Reversed version of asyncIterator.
     return (async function * () { // eslint-disable-line no-extra-parens
-      let node = await this.biggestNode();
+      // If the key is provided, scan and locate the position;
+      let node;
+      let locateKey = false;
+      if (key != null) {
+        node = await this.getNode(key);
+        locateKey = true;
+      } else {
+        node = await this.biggestNode();
+      }
       while (node != null) {
         // Unlike B-Tree traversal, B+Tree traversal doesn't need any stack.
         // Simply get the smallest node and traverse using left/right links.
@@ -368,15 +385,23 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         }
         // Then, load all the data at once.
         let getDatas = node.data.map(v => this.io.readData(v));
-        for (let i = getDatas.length - 1; i >= 0; --i) {
+        let i;
+        if (locateKey && key != null) {
+          i = node.locate(key, this.comparator).position;
+          locateKey = false;
+        } else {
+          i = getDatas.length - 1;
+        }
+        while (i >= 0) {
           yield await getDatas[i];
+          --i;
         }
         node = await getNext;
       }
     }).call(this);
   }
   // $FlowFixMe
-  [Symbol.asyncIterator]() {
+  [Symbol.asyncIterator](key) {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
     // around this object too.
@@ -384,7 +409,14 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     // with IIFE, so use eslint-disable-line to workaround this too.
     // Why so complicated? It's not in the spec yet.
     return (async function * () { // eslint-disable-line no-extra-parens
-      let node = await this.smallestNode();
+      let node;
+      let locateKey = false;
+      if (key != null) {
+        node = await this.getNode(key);
+        locateKey = true;
+      } else {
+        node = await this.smallestNode();
+      }
       while (node != null) {
         // Unlike B-Tree traversal, B+Tree traversal doesn't need any stack.
         // Simply get the smallest node and traverse using left/right links.
@@ -396,8 +428,16 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         }
         // Then, load all the data at once.
         let getDatas = node.data.map(v => this.io.readData(v));
-        for (let i = 0; i < getDatas.length; ++i) {
+        let i;
+        if (locateKey && key != null) {
+          i = node.locate(key, this.comparator).position;
+          locateKey = false;
+        } else {
+          i = 0;
+        }
+        while (i < getDatas.length) {
           yield await getDatas[i];
+          ++i;
         }
         node = await getNext;
       }

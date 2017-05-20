@@ -39,7 +39,6 @@ export default function test(getTree) {
       if (btree.toString) console.log(await btree.toString());
       for (let i = 0; i < 9; ++i) {
         expect(await btree.remove(i)).toBe(true);
-        if (btree.toString) console.log(await btree.toString());
       }
       expect(await spreadAsyncIterable(btree)).toEqual([9]);
     });
