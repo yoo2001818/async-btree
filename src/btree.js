@@ -384,14 +384,35 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.size - 1];
   }
-  reverseIterator() {
+  reverseIterator(key: ?Key) {
     // Reverse version of asyncIterator.
     let iter = (async function * () { // eslint-disable-line no-extra-parens
       // This can be greatly simplified in B+Tree, however, this is just a
       // regular B-Tree, so let's just use a stack.
+      // If a key is provided, we need to traverse to the node where the key is
+      // located while reconstructing the stack.
+      // Sounds quite complicated...
       let rootNode = await this.readRoot();
-      if (rootNode == null) return;
-      let stack = [[rootNode, rootNode.size]];
+      let stack = [];
+      if (key != null) {
+        while (rootNode != null) {
+          // Try to locate where to go.
+          let { position, exact } = rootNode.locate(key, this.comparator);
+          if (exact || rootNode.leaf) {
+            stack.push([rootNode, position]);
+            break;
+          } else {
+            if (position !== 0) {
+              stack.push([rootNode, position - 1]);
+            }
+          }
+          rootNode = await this.io.read(rootNode.children[position]);
+        }
+        if (rootNode == null) return;
+      } else {
+        if (rootNode == null) return;
+        stack.push([rootNode, rootNode.size]);
+      }
       while (stack.length > 0) {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
@@ -416,8 +437,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }).call(this);
     return iter;
   }
-  // $FlowFixMe
-  [Symbol.asyncIterator]() {
+  iterator(key: ?Key) {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
     // around this object too.
@@ -427,9 +447,30 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     return (async function * () { // eslint-disable-line no-extra-parens
       // This can be greatly simplified in B+Tree, however, this is just a
       // regular B-Tree, so let's just use a stack.
+      // If a key is provided, we need to traverse to the node where the key is
+      // located while reconstructing the stack.
+      // Sounds quite complicated...
       let rootNode = await this.readRoot();
-      if (rootNode == null) return;
-      let stack = [[rootNode, 0]];
+      let stack = [];
+      if (key != null) {
+        while (rootNode != null) {
+          // Try to locate where to go.
+          let { position, exact } = rootNode.locate(key, this.comparator);
+          if (exact || rootNode.leaf) {
+            stack.push([rootNode, position + 1]);
+            break;
+          } else {
+            if (position < rootNode.size) {
+              stack.push([rootNode, position + 1]);
+            }
+          }
+          rootNode = await this.io.read(rootNode.children[position]);
+        }
+        if (rootNode == null) return;
+      } else {
+        if (rootNode == null) return;
+        stack.push([rootNode, 0]);
+      }
       while (stack.length > 0) {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
@@ -456,6 +497,10 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         }
       }
     }).call(this);
+  }
+  // $FlowFixMe
+  [Symbol.asyncIterator](key: ?Key) {
+    return this.iterator(key);
   }
   async traverse(callback: Function): Promise<void> {
     // For await loops doesn't work well for now - just call iterator directly.

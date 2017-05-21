@@ -400,8 +400,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       }
     }).call(this);
   }
-  // $FlowFixMe
-  [Symbol.asyncIterator](key) {
+  iterator(key: ?Key) {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
     // around this object too.
@@ -442,6 +441,10 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         node = await getNext;
       }
     }).call(this);
+  }
+  // $FlowFixMe
+  [Symbol.asyncIterator](key: ?Key) {
+    return this.iterator(key);
   }
   async traverse(callback: Function): Promise<void> {
     // For await loops doesn't work well for now - just call iterator directly.

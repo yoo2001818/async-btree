@@ -36,7 +36,6 @@ export default function test(getTree) {
   describe('#remove', () => {
     it('should remove node 0 to 9', async () => {
       for (let i = 0; i < 10; ++i) await btree.insert(i, i);
-      if (btree.toString) console.log(await btree.toString());
       for (let i = 0; i < 9; ++i) {
         expect(await btree.remove(i)).toBe(true);
       }
@@ -81,6 +80,36 @@ export default function test(getTree) {
     });
     it('should return biggest value', async () => {
       expect(await btree.biggest()).toBe(99);
+    });
+  });
+  describe('#reverseIterator', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 10; ++i) await btree.insert(i, i);
+    });
+    it('should traverse the tree in-order', async () => {
+      expect(await spreadAsyncIterable(btree.reverseIterator()))
+        .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+    });
+    it('should traverse the tree from specified point', async () => {
+      for (let i = 0; i < 10; ++i) {
+        expect(await spreadAsyncIterable(btree.reverseIterator(i)))
+          .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0].slice(9 - i));
+      }
+    });
+  });
+  describe('#iterator', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 10; ++i) await btree.insert(i, i);
+    });
+    it('should traverse the tree in-order', async () => {
+      expect(await spreadAsyncIterable(btree))
+        .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
+    it('should traverse the tree from specified point', async () => {
+      for (let i = 0; i < 10; ++i) {
+        expect(await spreadAsyncIterable(btree.iterator(i)))
+          .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].slice(i));
+      }
     });
   });
 }
