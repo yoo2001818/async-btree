@@ -1,2 +1,2 @@
-# btree-js
-B-tree implementation for Javascript
+# async-btree
+Async B-tree implementation for Javascript
