@@ -23,7 +23,7 @@ export default class MemoryIO {
     return Promise.resolve();
   }
   allocate(node) {
-    let id = this.size ++;
+    let id = this.size++;
     return Promise.resolve(id);
   }
   readData(id) {
@@ -38,7 +38,7 @@ export default class MemoryIO {
     return Promise.resolve();
   }
   allocateData(data) {
-    let id = this.size ++;
+    let id = this.size++;
     return Promise.resolve(id);
   }
 }

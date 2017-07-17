@@ -404,7 +404,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       while (stack.length > 0) {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
-        let pos = stackEntry[1] --;
+        let pos = stackEntry[1]--;
         if (pos !== node.keys.length) {
           yield [node.keys[pos], node.data[pos]];
         }
@@ -464,7 +464,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       while (stack.length > 0) {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
-        let pos = stackEntry[1] ++;
+        let pos = stackEntry[1]++;
         if (pos !== 0) {
           yield [node.keys[pos - 1], node.data[pos - 1]];
         }
@@ -540,7 +540,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       while (stack.length > 0) {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
-        let pos = stackEntry[1] ++;
+        let pos = stackEntry[1]++;
         if (pos === 0) yield node;
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
