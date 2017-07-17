@@ -372,7 +372,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.keys.length - 1];
   }
-  reverseIteratorEntries(key: ?Key) {
+  reverseIteratorEntries(key: ?Key): AsyncGenerator<[Key, Value], void, void> {
     // Reverse version of asyncIterator.
     let iter = (async function * () { // eslint-disable-line no-extra-parens
       // This can be greatly simplified in B+Tree, however, this is just a
@@ -427,7 +427,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }).call(this);
     return iter;
   }
-  iteratorEntries(key: ?Key) {
+  iteratorEntries(key: ?Key): AsyncGenerator<[Key, Value], void, void> {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
     // around this object too.
@@ -490,7 +490,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       }
     }).call(this);
   }
-  reverseIterator(key: ?Key) {
+  reverseIterator(key: ?Key): AsyncGenerator<Value, void, void> {
     return (async function * () { // eslint-disable-line no-extra-parens
       const iterator = this.reverseIteratorEntries(key);
       while (true) {
@@ -500,7 +500,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       }
     }).call(this);
   }
-  iterator(key: ?Key) {
+  iterator(key: ?Key): AsyncGenerator<Value, void, void> {
     return (async function * () { // eslint-disable-line no-extra-parens
       const iterator = this.iteratorEntries(key);
       while (true) {
@@ -510,7 +510,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       }
     }).call(this);
   }
-  reverseIteratorKeys(key: ?Key) {
+  reverseIteratorKeys(key: ?Key): AsyncGenerator<Key, void, void> {
     return (async function * () { // eslint-disable-line no-extra-parens
       const iterator = this.reverseIteratorEntries(key);
       while (true) {
@@ -520,7 +520,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       }
     }).call(this);
   }
-  iteratorKeys(key: ?Key) {
+  iteratorKeys(key: ?Key): AsyncGenerator<Key, void, void> {
     return (async function * () { // eslint-disable-line no-extra-parens
       const iterator = this.iteratorEntries(key);
       while (true) {
@@ -531,7 +531,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }).call(this);
   }
   // Iterator to traverse the tree's whole nodes in pre-order.
-  iteratorNodesAll() {
+  iteratorNodesAll(key: ?Key): AsyncGenerator<Node<Key>, void, void> {
     return (async function * () { // eslint-disable-line no-extra-parens
       let rootNode = await this.readRoot();
       let stack = [];

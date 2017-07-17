@@ -1,29 +1,11 @@
 // @flow
 // An implementation of PO-B+Tree.
 
+import BTree from './btree';
 import Node from './node';
-import type { Tree, IOInterface } from './type';
+import type { Tree } from './type';
 
-export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
-  nodeSize: number;
-  comparator: (a: Key, b: Key) => number;
-  root: Node<Key>;
-  io: IOInterface<Key, Value>;
-
-  constructor(io: IOInterface<Key, Value>, nodeSize: number,
-    comparator: (a: Key, b: Key) => number
-  ) {
-    this.io = io;
-    this.nodeSize = nodeSize;
-    this.comparator = comparator;
-  }
-  readRoot(): Promise<?Node<Key>> {
-    return this.io.getRoot().then(id => {
-      if (id == null) return null;
-      // We're not using async function to use TCO?
-      return this.io.read(id);
-    });
-  }
+export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
   async insert(key: Key, data: Value): Promise<Tree<Key, Value>> {
     let node = await this.readRoot();
     if (node == null) {
@@ -326,32 +308,6 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
     ]);
     return node;
   }
-  async smallestNode(topNode: ?Node<Key>): Promise<?Node<Key>> {
-    // Just navigate to smallest node, easy!
-    let node = topNode || await this.readRoot();
-    while (node != null && !node.leaf) {
-      node = await this.io.read(node.children[0]);
-    }
-    return node;
-  }
-  async biggestNode(topNode: ?Node<Key>): Promise<?Node<Key>> {
-    // Just navigate to biggest node, easy!
-    let node = topNode || await this.readRoot();
-    while (node != null && !node.leaf) {
-      node = await this.io.read(node.children[node.keys.length]);
-    }
-    return node;
-  }
-  async smallest(topNode: ?Node<Key>): Promise<?Key> {
-    let node = await this.smallestNode(topNode);
-    if (node == null) return null;
-    return node.keys[0];
-  }
-  async biggest(topNode: ?Node<Key>): Promise<?Key> {
-    let node = await this.biggestNode(topNode);
-    if (node == null) return null;
-    return node.keys[node.keys.length - 1];
-  }
   // Note that iteratorNodes can't be implemented in B-Tree, due to its
   // in-order nature.
   reverseIteratorNodes(key: ?Key) {
@@ -529,54 +485,5 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
         }
       }
     }).call(this);
-  }
-  // Iterator to traverse the tree's whole nodes. Thus, we're not using
-  // B+Tree's linked list. The traversal will be done in pre-order.
-  iteratorNodesAll() {
-    return (async function * () { // eslint-disable-line no-extra-parens
-      let rootNode = await this.readRoot();
-      let stack = [];
-      if (rootNode == null) return;
-      stack.push([rootNode, 0]);
-      while (stack.length > 0) {
-        let stackEntry = stack[stack.length - 1];
-        let node = stackEntry[0];
-        let pos = stackEntry[1] ++;
-        if (pos === 0) yield node;
-        // Step into descending node...
-        if (!node.leaf && node.children[pos] != null) {
-          if (pos >= node.keys.length) {
-            // Do TCO if this node is last children of the node
-            stack[stack.length - 1] = [
-              await this.io.read(node.children[pos]),
-              0,
-            ];
-          } else {
-            // Otherwise, just push.
-            stack.push([
-              await this.io.read(node.children[pos]),
-              0,
-            ]);
-          }
-        } else if (pos >= node.keys.length) {
-          // Escape if finished.
-          stack.pop();
-        }
-      }
-    }).call(this);
-  }
-  // $FlowFixMe
-  [Symbol.asyncIterator](key: ?Key) {
-    return this.iterator(key);
-  }
-  async traverse(callback: Function): Promise<void> {
-    // For await loops doesn't work well for now - just call iterator directly.
-    // $FlowFixMe
-    const iterator = this[Symbol.asyncIterator]();
-    while (true) {
-      const { value, done } = await iterator.next();
-      if (done) break;
-      callback(value);
-    }
   }
 }
