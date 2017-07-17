@@ -36,7 +36,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       await this.io.writeRoot(node.id);
       return this;
     }
-    if (node.size >= this.nodeSize * 2 - 1) {
+    if (node.keys.length >= this.nodeSize * 2 - 1) {
       // Create new root node then separate it.
       let newRoot = new Node(undefined, 0, [], [], [node.id], false);
       newRoot.id = await this.io.allocate(newRoot);
@@ -49,7 +49,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         // If leaf node, put the key in the right place, while pushing the other
         // ones.
         let i;
-        for (i = node.size;
+        for (i = node.keys.length;
           i >= 1 && this.comparator(node.keys[i - 1], key) > 0; --i
         ) {
           node.keys[i] = node.keys[i - 1];
@@ -58,7 +58,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         node.keys[i] = key;
         let dataId = await this.io.allocateData(data);
         node.data[i] = await this.io.writeData(dataId, data);
-        node.size ++;
         await this.io.write(node.id, node);
         // We're done here.
         return this;
@@ -94,14 +93,14 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         // Fail if the node is leaf node.
         if (node.leaf) return false;
         let childNode = await this.io.read(node.children[position]);
-        if (childNode.size < this.nodeSize) {
+        if (childNode.keys.length < this.nodeSize) {
           let [leftNode, rightNode] = await Promise.all([
             this.io.read(node.children[position - 1]),
             this.io.read(node.children[position + 1]),
           ]);
           // Search for sibling node with at least `nodeSize` keys, and steal
           // a key from that node.
-          if (leftNode && leftNode.size >= this.nodeSize) {
+          if (leftNode && leftNode.keys.length >= this.nodeSize) {
             // Steal a key from left node.
             //   +----C----+
             // A-+-B     D-+-E
@@ -110,7 +109,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             //   A       C-D-E
             childNode.keys.unshift(node.keys[position]);
             childNode.data.unshift(node.data[position]);
-            childNode.size ++;
             // Since same level of nodes are always same, we can just look for
             // leftNode's validity.
             if (!leftNode.leaf) {
@@ -119,14 +117,13 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             }
             node.keys[position] = leftNode.keys.pop();
             node.data[position] = leftNode.data.pop();
-            leftNode.size --;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
               this.io.write(childNode.id, childNode),
               this.io.write(leftNode.id, leftNode),
             ]);
-          } else if (rightNode && rightNode.size >= this.nodeSize) {
+          } else if (rightNode && rightNode.keys.length >= this.nodeSize) {
             // Steal a key from right node.
             //   +----C----+
             // A-+-B     D-+-E
@@ -135,7 +132,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             // A-B-C       E
             childNode.keys.push(node.keys[position]);
             childNode.data.push(node.data[position]);
-            childNode.size ++;
             // Since same level of nodes are always same, we can just look for
             // leftNode's validity.
             if (!rightNode.leaf) {
@@ -144,7 +140,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             }
             node.keys[position] = rightNode.keys.shift();
             node.data[position] = rightNode.data.shift();
-            rightNode.size --;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
@@ -168,18 +163,17 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             } else {
               throw new Error('There is no left / right node while removing.');
             }
+            let prevSize = mergeLeft.keys.length;
             mergeLeft.keys.push(node.keys[position + offset]);
             mergeLeft.data.push(node.data[position + offset]);
             mergeRight.keys.forEach(v => mergeLeft.keys.push(v));
             mergeRight.data.forEach(v => mergeLeft.data.push(v));
             mergeRight.children.forEach((v, k) => {
-              mergeLeft.children[mergeLeft.size + k + 1] = v;
+              mergeLeft.children[prevSize + k + 1] = v;
             });
-            mergeLeft.size += mergeRight.size + 1;
             // Remove mergeRight from disk.
             node.keys.splice(position + offset, 1);
             node.children.splice(position + siblingOffset, 1);
-            node.size --;
             // If no key is left in current node, it means that root node
             // is now obsolete; shift the root node.
             if (node.keys.length === 0) {
@@ -210,7 +204,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           let dataId = node.data[position];
           node.keys.splice(position, 1);
           node.data.splice(position, 1);
-          node.size --;
           await Promise.all([
             this.io.write(node.id, node),
             this.io.removeData(dataId),
@@ -225,7 +218,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             this.io.read(node.children[position - 1]),
             this.io.read(node.children[position]),
           ]);
-          if (leftNode != null && leftNode.size >= this.nodeSize) {
+          if (leftNode != null && leftNode.keys.length >= this.nodeSize) {
             // Steal biggest node in the left node.
             let biggestNode = await this.biggestNode(leftNode);
             if (biggestNode == null) {
@@ -235,7 +228,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             let biggest = biggestNode.keys.pop();
             let biggestData = biggestNode.data.pop();
             let dataId = node.data[position];
-            biggestNode.size --;
             node.keys[position] = biggest;
             node.data[position] = biggestData;
             await Promise.all([
@@ -243,7 +235,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
               this.io.write(node.id, node),
               this.io.removeData(dataId),
             ]);
-          } else if (rightNode != null && rightNode.size >= this.nodeSize) {
+          } else if (rightNode != null && rightNode.keys.length >= this.nodeSize) {
             // Steal smallest node in the right node.
             let smallestNode = await this.smallestNode(rightNode);
             if (smallestNode == null) {
@@ -253,7 +245,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             let smallest = smallestNode.keys.shift();
             let smallestData = smallestNode.data.shift();
             let dataId = node.data[position];
-            smallestNode.size --;
             node.keys[position] = smallest;
             node.data[position] = smallestData;
             await Promise.all([
@@ -263,17 +254,16 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             ]);
           } else if (leftNode != null && rightNode != null) {
             // Merge left and right node.
+            let prevSize = leftNode.keys.length;
             rightNode.keys.forEach(v => leftNode.keys.push(v));
             rightNode.data.forEach(v => leftNode.data.push(v));
             rightNode.children.forEach((v, k) => {
-              leftNode.children[leftNode.size + k + 1] = v;
+              leftNode.children[prevSize + k + 1] = v;
             });
-            leftNode.size += rightNode.keys.length;
             let dataId = node.data[position];
             node.keys.splice(position, 1);
             node.data.splice(position, 1);
             node.children.splice(position, 1);
-            node.size --;
             // Save to disk, while removing right node.
             await Promise.all([
               this.io.write(node.id, node),
@@ -320,16 +310,16 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
 
     // Push parent's keys / children to right to make a space to insert the
     // nodes.
-    for (let i = node.size + 1; i > pos + 1; --i) {
+    for (let i = node.keys.length + 1; i > pos + 1; --i) {
       node.children[i] = node.children[i - 1];
     }
-    for (let i = node.size; i > pos; --i) {
+    for (let i = node.keys.length; i > pos; --i) {
       node.keys[i] = node.keys[i - 1];
       node.data[i] = node.data[i - 1];
     }
 
     // Create right node by slicing the data from the child.
-    let right = new Node(undefined, child.size - this.nodeSize,
+    let right = new Node(undefined, child.keys.length - this.nodeSize,
       child.keys.slice(this.nodeSize),
       child.data.slice(this.nodeSize),
       child.children.slice(this.nodeSize),
@@ -339,7 +329,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     let center = child.keys[this.nodeSize - 1];
     let centerData = child.data[this.nodeSize - 1];
     // Resize the left node.
-    child.size = this.nodeSize - 1;
     child.keys.length = this.nodeSize - 1;
     child.data.length = this.nodeSize - 1;
     child.children.length = this.nodeSize;
@@ -349,7 +338,6 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     node.children[pos + 1] = right.id;
     node.keys[pos] = center;
     node.data[pos] = centerData;
-    node.size = node.size + 1;
     node.leaf = false;
     await Promise.all([
       this.io.write(right.id, right),
@@ -370,7 +358,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     // Just navigate to biggest node, easy!
     let node = topNode || await this.readRoot();
     while (node != null && !node.leaf) {
-      node = await this.io.read(node.children[node.size]);
+      node = await this.io.read(node.children[node.keys.length]);
     }
     return node;
   }
@@ -382,7 +370,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
   async biggest(topNode: ?Node<Key>): Promise<?Key> {
     let node = await this.biggestNode(topNode);
     if (node == null) return null;
-    return node.keys[node.size - 1];
+    return node.keys[node.keys.length - 1];
   }
   reverseIteratorEntries(key: ?Key) {
     // Reverse version of asyncIterator.
@@ -411,13 +399,13 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         if (rootNode == null) return;
       } else {
         if (rootNode == null) return;
-        stack.push([rootNode, rootNode.size]);
+        stack.push([rootNode, rootNode.keys.length]);
       }
       while (stack.length > 0) {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
         let pos = stackEntry[1] --;
-        if (pos !== node.size) {
+        if (pos !== node.keys.length) {
           yield [node.keys[pos], node.data[pos]];
         }
         // Step into descending node...
@@ -425,11 +413,11 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           if (pos === 0) {
             // Do TCO if this node is last children of the node
             let newNode = await this.io.read(node.children[pos]);
-            stack[stack.length - 1] = [newNode, newNode.size];
+            stack[stack.length - 1] = [newNode, newNode.keys.length];
           } else {
             // Otherwise, just push.
             let newNode = await this.io.read(node.children[pos]);
-            stack.push([newNode, newNode.size]);
+            stack.push([newNode, newNode.keys.length]);
           }
         } else if (pos === 0) {
           // Escape if finished.
@@ -462,7 +450,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             stack.push([rootNode, position + 1]);
             break;
           } else {
-            if (position < rootNode.size) {
+            if (position < rootNode.keys.length) {
               stack.push([rootNode, position + 1]);
             }
           }
@@ -482,7 +470,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         }
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
-          if (pos >= node.size) {
+          if (pos >= node.keys.length) {
             // Do TCO if this node is last children of the node
             stack[stack.length - 1] = [
               await this.io.read(node.children[pos]),
@@ -495,7 +483,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
               0,
             ]);
           }
-        } else if (pos >= node.size) {
+        } else if (pos >= node.keys.length) {
           // Escape if finished.
           stack.pop();
         }
@@ -556,7 +544,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         if (pos === 0) yield node;
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
-          if (pos >= node.size) {
+          if (pos >= node.keys.length) {
             // Do TCO if this node is last children of the node
             stack[stack.length - 1] = [
               await this.io.read(node.children[pos]),
@@ -569,7 +557,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
               0,
             ]);
           }
-        } else if (pos >= node.size) {
+        } else if (pos >= node.keys.length) {
           // Escape if finished.
           stack.pop();
         }
