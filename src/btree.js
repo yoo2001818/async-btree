@@ -384,7 +384,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.size - 1];
   }
-  reverseIterator(key: ?Key) {
+  reverseIteratorEntries(key: ?Key) {
     // Reverse version of asyncIterator.
     let iter = (async function * () { // eslint-disable-line no-extra-parens
       // This can be greatly simplified in B+Tree, however, this is just a
@@ -417,7 +417,9 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
         let pos = stackEntry[1] --;
-        if (pos !== node.size) yield await this.io.readData(node.data[pos]);
+        if (pos !== node.size) {
+          yield [node.keys[pos], node.data[pos]];
+        }
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
           if (pos === 0) {
@@ -437,7 +439,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }).call(this);
     return iter;
   }
-  iterator(key: ?Key) {
+  iteratorEntries(key: ?Key) {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
     // around this object too.
@@ -475,7 +477,83 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         let stackEntry = stack[stack.length - 1];
         let node = stackEntry[0];
         let pos = stackEntry[1] ++;
-        if (pos !== 0) yield await this.io.readData(node.data[pos - 1]);
+        if (pos !== 0) {
+          yield [node.keys[pos - 1], node.data[pos - 1]];
+        }
+        // Step into descending node...
+        if (!node.leaf && node.children[pos] != null) {
+          if (pos >= node.size) {
+            // Do TCO if this node is last children of the node
+            stack[stack.length - 1] = [
+              await this.io.read(node.children[pos]),
+              0,
+            ];
+          } else {
+            // Otherwise, just push.
+            stack.push([
+              await this.io.read(node.children[pos]),
+              0,
+            ]);
+          }
+        } else if (pos >= node.size) {
+          // Escape if finished.
+          stack.pop();
+        }
+      }
+    }).call(this);
+  }
+  reverseIterator(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      const iterator = this.reverseIteratorEntries(key);
+      while (true) {
+        const { value, done } = await iterator.next();
+        if (done || value == null) break;
+        yield await this.io.readData(value[1]);
+      }
+    }).call(this);
+  }
+  iterator(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      const iterator = this.iteratorEntries(key);
+      while (true) {
+        const { value, done } = await iterator.next();
+        if (done || value == null) break;
+        yield await this.io.readData(value[1]);
+      }
+    }).call(this);
+  }
+  reverseIteratorKeys(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      const iterator = this.reverseIteratorEntries(key);
+      while (true) {
+        const { value, done } = await iterator.next();
+        if (done || value == null) break;
+        yield value[0];
+      }
+    }).call(this);
+  }
+  iteratorKeys(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      const iterator = this.iteratorEntries(key);
+      while (true) {
+        const { value, done } = await iterator.next();
+        if (done || value == null) break;
+        yield value[0];
+      }
+    }).call(this);
+  }
+  // Iterator to traverse the tree's whole nodes in pre-order.
+  iteratorNodesAll() {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let rootNode = await this.readRoot();
+      let stack = [];
+      if (rootNode == null) return;
+      stack.push([rootNode, 0]);
+      while (stack.length > 0) {
+        let stackEntry = stack[stack.length - 1];
+        let node = stackEntry[0];
+        let pos = stackEntry[1] ++;
+        if (pos === 0) yield node;
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
           if (pos >= node.size) {

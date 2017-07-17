@@ -362,6 +362,8 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.size - 1];
   }
+  // Note that iteratorNodes can't be implemented in B-Tree, due to its
+  // in-order nature.
   reverseIteratorNodes(key: ?Key) {
     // Reversed version of asyncIterator.
     return (async function * () { // eslint-disable-line no-extra-parens
@@ -412,6 +414,47 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
         // Then, load all the data at once.
         yield node;
         node = await getNext;
+      }
+    }).call(this);
+  }
+  // TODO Clean this mess up
+  reverseIteratorEntries(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let locateKey = key != null;
+      const iterator = this.reverseIteratorNodes(key);
+      while (true) {
+        const { value: node, done } = await iterator.next();
+        if (node == null || done) break;
+        let i;
+        if (locateKey && key != null) {
+          i = node.locate(key, this.comparator).position;
+          locateKey = false;
+        } else {
+          i = node.size - 1;
+        }
+        while (i >= 0) {
+          yield [node.keys[i], node.data[i]];
+          --i;
+        }
+      }
+    }).call(this);
+  }
+  iteratorEntries(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let locateKey = key != null;
+      const iterator = this.iteratorNodes(key);
+      while (true) {
+        const { value: node, done } = await iterator.next();
+        if (node == null || done) break;
+        let i = 0;
+        if (locateKey && key != null) {
+          i = node.locate(key, this.comparator).position;
+          locateKey = false;
+        }
+        while (i < node.size) {
+          yield [node.keys[i], node.data[i]];
+          ++i;
+        }
       }
     }).call(this);
   }
