@@ -39,7 +39,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
     }
     // PO-insert. Unlike B-Tree, it checks for 2n or 2n + 1 keys instead of
     // 2n - 1 or 2n keys.
-    if (node.size >= this.nodeSize * 2) {
+    if (node.keys.length >= this.nodeSize * 2) {
       // Create new root node then separate it.
       let newRoot = new Node(undefined, 0, [], [], [node.id], false);
       newRoot.id = await this.io.allocate(newRoot);
@@ -55,7 +55,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
         // **whenever** a 2n or 2n + 1 key node is encountered, including leaf
         // node.
         let i;
-        for (i = node.size;
+        for (i = node.keys.length;
           i >= 1 && this.comparator(node.keys[i - 1], key) > 0; --i
         ) {
           node.keys[i] = node.keys[i - 1];
@@ -64,7 +64,6 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
         node.keys[i] = key;
         let dataId = await this.io.allocateData(data);
         node.data[i] = await this.io.writeData(dataId, data);
-        node.size ++;
         await this.io.write(node.id, node);
         // We're done here.
         return this;
@@ -109,7 +108,6 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
         let dataId = node.data[position];
         node.keys.splice(position, 1);
         node.data.splice(position, 1);
-        node.size --;
         await Promise.all([
           this.io.write(node.id, node),
           this.io.removeData(dataId),
@@ -119,13 +117,13 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
         // Locate the children...
         if (exact) position += 1;
         let childNode = await this.io.read(node.children[position]);
-        if (childNode.size <= this.nodeSize) {
+        if (childNode.keys.length <= this.nodeSize) {
           // Find the neighbor with more than n keys...
           let [leftNode, rightNode] = await Promise.all([
             this.io.read(node.children[position - 1]),
             this.io.read(node.children[position + 1]),
           ]);
-          if (leftNode && leftNode.size > this.nodeSize) {
+          if (leftNode && leftNode.keys.length > this.nodeSize) {
             // Steal two keys from the left node.
             //    +----D----+
             //  A-B-C       E
@@ -136,23 +134,21 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
             //   1 2     3 4 5 6
             childNode.keys.unshift(leftNode.keys.pop());
             childNode.data.unshift(leftNode.data.pop());
-            childNode.size ++;
             // Since same level of nodes are always same, we can just look for
             // leftNode's validity.
             if (!leftNode.leaf) {
               let childrenAdd = leftNode.children.pop();
               if (childrenAdd != null) childNode.children.unshift(childrenAdd);
             }
-            leftNode.size --;
-            node.keys[position] = leftNode.keys[leftNode.size];
-            node.data[position] = leftNode.data[leftNode.size];
+            node.keys[position] = leftNode.keys[leftNode.keys.length];
+            node.data[position] = leftNode.data[leftNode.keys.length];
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
               this.io.write(childNode.id, childNode),
               this.io.write(leftNode.id, leftNode),
             ]);
-          } else if (rightNode && rightNode.size > this.nodeSize) {
+          } else if (rightNode && rightNode.keys.length > this.nodeSize) {
             // Steal a key from right node, while overwritting root node.
             //    +----B----+
             //    A       C-D-E
@@ -163,7 +159,6 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
             //  1 2 3     4 5 6
             childNode.keys.push(rightNode.keys.shift());
             childNode.data.push(rightNode.data.shift());
-            childNode.size ++;
             // Since same level of nodes are always same, we can just look for
             // rightNode's validity.
             if (!rightNode.leaf) {
@@ -172,7 +167,6 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
             }
             node.keys[position] = rightNode.keys[0];
             node.data[position] = rightNode.data[0];
-            rightNode.size --;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
@@ -199,20 +193,18 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
             if (!mergeLeft.leaf) {
               mergeLeft.keys.push(node.keys[position + offset]);
               mergeLeft.data.push(node.data[position + offset]);
-              mergeLeft.size ++;
             }
+            let prevSize = mergeLeft.keys.length;
             mergeRight.keys.forEach(v => mergeLeft.keys.push(v));
             mergeRight.data.forEach(v => mergeLeft.data.push(v));
             mergeRight.children.forEach((v, k) => {
-              mergeLeft.children[mergeLeft.size + k] = v;
+              mergeLeft.children[prevSize + k] = v;
             });
-            mergeLeft.size += mergeRight.size;
             mergeLeft.right = mergeRight.right;
             // Remove mergeRight from disk.
             node.keys.splice(position + offset, 1);
             node.data.splice(position + offset, 1);
             node.children.splice(position + siblingOffset, 1);
-            node.size --;
             // If no key is left in current node, it means that root node
             // is now obsolete; shift the root node.
             if (node.keys.length === 0) {
@@ -279,10 +271,10 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
 
     // Push parent's keys / children to right to make a space to insert the
     // nodes.
-    for (let i = node.size + 1; i > pos + 1; --i) {
+    for (let i = node.keys.length + 1; i > pos + 1; --i) {
       node.children[i] = node.children[i - 1];
     }
-    for (let i = node.size; i > pos; --i) {
+    for (let i = node.keys.length; i > pos; --i) {
       node.keys[i] = node.keys[i - 1];
       node.data[i] = node.data[i - 1];
     }
@@ -292,14 +284,14 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
     // exactly like B-Tree.
     let right;
     if (child.leaf) {
-      right = new Node(undefined, child.size - this.nodeSize + 1,
+      right = new Node(undefined, child.keys.length - this.nodeSize + 1,
         child.keys.slice(this.nodeSize - 1),
         child.data.slice(this.nodeSize - 1),
         child.children.slice(this.nodeSize - 1),
         child.leaf
       );
     } else {
-      right = new Node(undefined, child.size - this.nodeSize,
+      right = new Node(undefined, child.keys.length - this.nodeSize,
         child.keys.slice(this.nodeSize),
         child.data.slice(this.nodeSize),
         child.children.slice(this.nodeSize),
@@ -310,7 +302,6 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
     let center = child.keys[this.nodeSize - 1];
     let centerData = child.data[this.nodeSize - 1];
     // Resize the left node.
-    child.size = this.nodeSize - 1;
     child.keys.length = this.nodeSize - 1;
     child.data.length = this.nodeSize - 1;
     child.children.length = this.nodeSize;
@@ -327,7 +318,6 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
     node.children[pos + 1] = right.id;
     node.keys[pos] = center;
     node.data[pos] = centerData;
-    node.size = node.size + 1;
     node.leaf = false;
     await Promise.all([
       this.io.write(right.id, right),
@@ -348,7 +338,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
     // Just navigate to biggest node, easy!
     let node = topNode || await this.readRoot();
     while (node != null && !node.leaf) {
-      node = await this.io.read(node.children[node.size]);
+      node = await this.io.read(node.children[node.keys.length]);
     }
     return node;
   }
@@ -360,7 +350,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
   async biggest(topNode: ?Node<Key>): Promise<?Key> {
     let node = await this.biggestNode(topNode);
     if (node == null) return null;
-    return node.keys[node.size - 1];
+    return node.keys[node.keys.length - 1];
   }
   // Note that iteratorNodes can't be implemented in B-Tree, due to its
   // in-order nature.
@@ -430,7 +420,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
           i = node.locate(key, this.comparator).position;
           locateKey = false;
         } else {
-          i = node.size - 1;
+          i = node.keys.length - 1;
         }
         while (i >= 0) {
           yield [node.keys[i], node.data[i]];
@@ -451,7 +441,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
           i = node.locate(key, this.comparator).position;
           locateKey = false;
         }
-        while (i < node.size) {
+        while (i < node.keys.length) {
           yield [node.keys[i], node.data[i]];
           ++i;
         }
@@ -512,7 +502,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
           i = node.locate(key, this.comparator).position;
           locateKey = false;
         } else {
-          i = node.size - 1;
+          i = node.keys.length - 1;
         }
         while (i >= 0) {
           yield node.keys[i];
@@ -533,7 +523,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
           i = node.locate(key, this.comparator).position;
           locateKey = false;
         }
-        while (i < node.size) {
+        while (i < node.keys.length) {
           yield node.keys[i];
           ++i;
         }
@@ -555,7 +545,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
         if (pos === 0) yield node;
         // Step into descending node...
         if (!node.leaf && node.children[pos] != null) {
-          if (pos >= node.size) {
+          if (pos >= node.keys.length) {
             // Do TCO if this node is last children of the node
             stack[stack.length - 1] = [
               await this.io.read(node.children[pos]),
@@ -568,7 +558,7 @@ export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
               0,
             ]);
           }
-        } else if (pos >= node.size) {
+        } else if (pos >= node.keys.length) {
           // Escape if finished.
           stack.pop();
         }
