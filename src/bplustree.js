@@ -4,7 +4,7 @@
 import Node from './node';
 import type { Tree, IOInterface } from './type';
 
-export default class BTree<Key, Value> implements Tree<Key, Value> {
+export default class BPlusTree<Key, Value> implements Tree<Key, Value> {
   nodeSize: number;
   comparator: (a: Key, b: Key) => number;
   root: Node<Key>;
@@ -362,15 +362,13 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     if (node == null) return null;
     return node.keys[node.size - 1];
   }
-  reverseIterator(key: ?Key) {
+  reverseIteratorNodes(key: ?Key) {
     // Reversed version of asyncIterator.
     return (async function * () { // eslint-disable-line no-extra-parens
       // If the key is provided, scan and locate the position;
       let node;
-      let locateKey = false;
       if (key != null) {
         node = await this.getNode(key);
-        locateKey = true;
       } else {
         node = await this.biggestNode();
       }
@@ -383,24 +381,12 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         } else {
           getNext = Promise.resolve(null);
         }
-        // Then, load all the data at once.
-        let getDatas = node.data.map(v => this.io.readData(v));
-        let i;
-        if (locateKey && key != null) {
-          i = node.locate(key, this.comparator).position;
-          locateKey = false;
-        } else {
-          i = getDatas.length - 1;
-        }
-        while (i >= 0) {
-          yield await getDatas[i];
-          --i;
-        }
+        yield node;
         node = await getNext;
       }
     }).call(this);
   }
-  iterator(key: ?Key) {
+  iteratorNodes(key: ?Key) {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
     // around this object too.
@@ -409,10 +395,8 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     // Why so complicated? It's not in the spec yet.
     return (async function * () { // eslint-disable-line no-extra-parens
       let node;
-      let locateKey = false;
       if (key != null) {
         node = await this.getNode(key);
-        locateKey = true;
       } else {
         node = await this.smallestNode();
       }
@@ -426,19 +410,125 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           getNext = Promise.resolve(null);
         }
         // Then, load all the data at once.
+        yield node;
+        node = await getNext;
+      }
+    }).call(this);
+  }
+  reverseIterator(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let locateKey = key != null;
+      const iterator = this.reverseIteratorNodes(key);
+      while (true) {
+        const { value: node, done } = await iterator.next();
+        if (node == null || done) break;
         let getDatas = node.data.map(v => this.io.readData(v));
         let i;
         if (locateKey && key != null) {
           i = node.locate(key, this.comparator).position;
           locateKey = false;
         } else {
-          i = 0;
+          i = getDatas.length - 1;
+        }
+        while (i >= 0) {
+          yield await getDatas[i];
+          --i;
+        }
+      }
+    }).call(this);
+  }
+  iterator(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let locateKey = key != null;
+      const iterator = this.iteratorNodes(key);
+      while (true) {
+        const { value: node, done } = await iterator.next();
+        if (node == null || done) break;
+        let getDatas = node.data.map(v => this.io.readData(v));
+        let i = 0;
+        if (locateKey && key != null) {
+          i = node.locate(key, this.comparator).position;
+          locateKey = false;
         }
         while (i < getDatas.length) {
           yield await getDatas[i];
           ++i;
         }
-        node = await getNext;
+      }
+    }).call(this);
+  }
+  reverseIteratorKeys(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let locateKey = key != null;
+      const iterator = this.reverseIteratorNodes(key);
+      while (true) {
+        const { value: node, done } = await iterator.next();
+        if (node == null || done) break;
+        let i;
+        if (locateKey && key != null) {
+          i = node.locate(key, this.comparator).position;
+          locateKey = false;
+        } else {
+          i = node.size - 1;
+        }
+        while (i >= 0) {
+          yield node.keys[i];
+          --i;
+        }
+      }
+    }).call(this);
+  }
+  iteratorKeys(key: ?Key) {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let locateKey = key != null;
+      const iterator = this.iteratorNodes(key);
+      while (true) {
+        const { value: node, done } = await iterator.next();
+        if (node == null || done) break;
+        let i = 0;
+        if (locateKey && key != null) {
+          i = node.locate(key, this.comparator).position;
+          locateKey = false;
+        }
+        while (i < node.size) {
+          yield node.keys[i];
+          ++i;
+        }
+      }
+    }).call(this);
+  }
+  // Iterator to traverse the tree's whole nodes. Thus, we're not using
+  // B+Tree's linked list. The traversal will be done in pre-order.
+  iteratorNodesAll() {
+    return (async function * () { // eslint-disable-line no-extra-parens
+      let rootNode = await this.readRoot();
+      let stack = [];
+      if (rootNode == null) return;
+      stack.push([rootNode, 0]);
+      while (stack.length > 0) {
+        let stackEntry = stack[stack.length - 1];
+        let node = stackEntry[0];
+        let pos = stackEntry[1] ++;
+        if (pos === 0) yield node;
+        // Step into descending node...
+        if (!node.leaf && node.children[pos] != null) {
+          if (pos >= node.size) {
+            // Do TCO if this node is last children of the node
+            stack[stack.length - 1] = [
+              await this.io.read(node.children[pos]),
+              0,
+            ];
+          } else {
+            // Otherwise, just push.
+            stack.push([
+              await this.io.read(node.children[pos]),
+              0,
+            ]);
+          }
+        } else if (pos >= node.size) {
+          // Escape if finished.
+          stack.pop();
+        }
       }
     }).call(this);
   }

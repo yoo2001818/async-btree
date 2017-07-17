@@ -29,5 +29,8 @@ export interface Tree<Key, Value> {
   biggest(topNode: ?Node<Key>): Promise<?Key>;
   // reverseIterator(): Iterator;
   // [Symbol.asyncIterator](): Iterator;
+  // iteratorKeys(): Iterator;
+  // reverseIteratorKeys(): Iterator;
+  // iteratorNodesAll(): Iterator;
   traverse(callback: Function): Promise<void>;
 }
