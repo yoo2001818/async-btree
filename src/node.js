@@ -15,6 +15,27 @@ export class LocateResult {
   }
 }
 
+export function locateNode<Key>(
+  node: Node<Key>,
+  key: Key,
+  comparator: Comparator<Key>
+): LocateResult {
+  let high = node.keys.length - 1;
+  let low = 0;
+  do {
+    let mid = (high + low) >> 1;
+    let compared = comparator(node.keys[mid], key);
+    if (compared === 0) {
+      return new LocateResult(mid, true);
+    } else if (compared < 0) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  } while (high >= low);
+  return new LocateResult(low, false);
+}
+
 export function N<Key>(keys: Key[], children: ?Node<Key>[]): Node<Key> {
   if (children != null) {
     for (let i = 0; i < children.length; ++i) {
@@ -47,21 +68,5 @@ export default class Node<Key> {
     this.data = data;
     this.children = children;
     this.leaf = leaf;
-  }
-  locate(key: Key, comparator: Comparator<Key>): LocateResult {
-    let high = this.keys.length - 1;
-    let low = 0;
-    do {
-      let mid = (high + low) >> 1;
-      let compared = comparator(this.keys[mid], key);
-      if (compared === 0) {
-        return new LocateResult(mid, true);
-      } else if (compared < 0) {
-        low = mid + 1;
-      } else {
-        high = mid - 1;
-      }
-    } while (high >= low);
-    return new LocateResult(low, false);
   }
 }

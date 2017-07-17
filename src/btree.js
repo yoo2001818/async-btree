@@ -1,6 +1,6 @@
 // @flow
 // A asynchronous B-Tree implementation.
-import Node from './node';
+import Node, { locateNode } from './node';
 import type { Tree, IOInterface } from './type';
 
 export default class BTree<Key, Value> implements Tree<Key, Value> {
@@ -63,7 +63,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         return this;
       } else {
         // If middle node, Find right offset and insert to there.
-        let result = node.locate(key, this.comparator);
+        let result = locateNode(node, key, this.comparator);
         if (result.exact) throw new Error('Duplicate key');
         let pos = result.position;
         let child = await this.io.read(node.children[pos]);
@@ -85,7 +85,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     while (node != null) {
       // First, we need to locate where the key would be, and descend while
       // performing rebalancing logic.
-      let { position, exact } = node.locate(key, this.comparator);
+      let { position, exact } = locateNode(node, key, this.comparator);
       if (!exact) {
         // Descending node requires at least `nodeSize` keys, so if descending
         // node doesn't have it - we have to make it have `nodeSize` keys by
@@ -285,7 +285,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     let node = await this.readRoot();
     while (node != null) {
       // Try to locate where to go.
-      let { position, exact } = node.locate(key, this.comparator);
+      let { position, exact } = locateNode(node, key, this.comparator);
       if (exact) return this.io.readData(node.data[position]);
       // If not matched, go down to right child
       // But this fails in leaf node, so just mark it as a failure
@@ -385,7 +385,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       if (key != null) {
         while (rootNode != null) {
           // Try to locate where to go.
-          let { position, exact } = rootNode.locate(key, this.comparator);
+          let { position, exact } = locateNode(rootNode, key, this.comparator);
           if (exact || rootNode.leaf) {
             stack.push([rootNode, position]);
             break;
@@ -445,7 +445,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       if (key != null) {
         while (rootNode != null) {
           // Try to locate where to go.
-          let { position, exact } = rootNode.locate(key, this.comparator);
+          let { position, exact } = locateNode(rootNode, key, this.comparator);
           if (exact || rootNode.leaf) {
             stack.push([rootNode, position + 1]);
             break;

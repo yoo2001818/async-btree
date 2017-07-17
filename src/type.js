@@ -27,10 +27,12 @@ export interface Tree<Key, Value> {
   biggestNode(topNode: ?Node<Key>): Promise<?Node<Key>>;
   smallest(topNode: ?Node<Key>): Promise<?Key>;
   biggest(topNode: ?Node<Key>): Promise<?Key>;
-  // reverseIterator(): Iterator;
-  // [Symbol.asyncIterator](): Iterator;
-  // iteratorKeys(): Iterator;
-  // reverseIteratorKeys(): Iterator;
-  // iteratorNodesAll(): Iterator;
+  reverseIteratorEntries(key: ?Key): AsyncGenerator<[Key, any], void, void>;
+  iteratorEntries(key: ?Key): AsyncGenerator<[Key, any], void, void>;
+  reverseIteratorKeys(key: ?Key): AsyncGenerator<Key, void, void>;
+  iteratorKeys(key: ?Key): AsyncGenerator<Key, void, void>;
+  reverseIterator(key: ?Key): AsyncGenerator<Value, void, void>;
+  iterator(key: ?Key): AsyncGenerator<Value, void, void>;
+  iteratorNodesAll(key: ?Key): AsyncGenerator<Node<Key>, void, void>;
   traverse(callback: Function): Promise<void>;
 }

@@ -1,8 +1,6 @@
-// @flow
-// An implementation of PO-B+Tree.
 
 import BTree from './btree';
-import Node from './node';
+import Node, { locateNode } from './node';
 import type { Tree } from './type';
 
 export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
@@ -51,7 +49,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         return this;
       } else {
         // If middle node, Find right offset and insert to there.
-        let result = node.locate(key, this.comparator);
+        let result = locateNode<Key>(node, key, this.comparator);
         if (result.exact) throw new Error('Duplicate key');
         let pos = result.position;
         let child = await this.io.read(node.children[pos]);
@@ -82,7 +80,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     while (node != null) {
       // First, we need to locate where the key would be, and descend while
       // performing rebalancing logic.
-      let { position, exact } = node.locate(key, this.comparator);
+      let { position, exact } = locateNode<Key>(node, key, this.comparator);
       if (node.leaf) {
         if (!exact) return false;
         // If this is a leaf node, we can safely remove it from the keys.
@@ -219,7 +217,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     let node = await this.readRoot();
     while (node != null) {
       // Try to locate where to go.
-      let { position, exact } = node.locate(key, this.comparator);
+      let { position, exact } = locateNode<Key>(node, key, this.comparator);
       if (node.leaf) {
         if (exact) return this.io.readData(node.data[position]);
         else return null;
@@ -234,7 +232,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     let node = await this.readRoot();
     while (node != null && !node.leaf) {
       // Try to locate where to go.
-      let { position, exact } = node.locate(key, this.comparator);
+      let { position, exact } = locateNode<Key>(node, key, this.comparator);
       node = await this.io.read(node.children[position + (exact ? 1 : 0)]);
     }
     return node;
@@ -373,7 +371,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         if (node == null || done) break;
         let i;
         if (locateKey && key != null) {
-          i = node.locate(key, this.comparator).position;
+          i = locateNode<Key>(node, key, this.comparator).position;
           locateKey = false;
         } else {
           i = node.keys.length - 1;
@@ -394,7 +392,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         if (node == null || done) break;
         let i = 0;
         if (locateKey && key != null) {
-          i = node.locate(key, this.comparator).position;
+          i = locateNode<Key>(node, key, this.comparator).position;
           locateKey = false;
         }
         while (i < node.keys.length) {
@@ -404,7 +402,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  reverseIterator(key: ?Key) {
+  reverseIterator(key: ?Key): AsyncGenerator<Value, void, void> {
     return (async function * () { // eslint-disable-line no-extra-parens
       let locateKey = key != null;
       const iterator = this.reverseIteratorNodes(key);
@@ -414,7 +412,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         let getDatas = node.data.map(v => this.io.readData(v));
         let i;
         if (locateKey && key != null) {
-          i = node.locate(key, this.comparator).position;
+          i = locateNode<Key>(node, key, this.comparator).position;
           locateKey = false;
         } else {
           i = getDatas.length - 1;
@@ -426,7 +424,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  iterator(key: ?Key) {
+  iterator(key: ?Key): AsyncGenerator<Value, void, void> {
     return (async function * () { // eslint-disable-line no-extra-parens
       let locateKey = key != null;
       const iterator = this.iteratorNodes(key);
@@ -455,7 +453,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         if (node == null || done) break;
         let i;
         if (locateKey && key != null) {
-          i = node.locate(key, this.comparator).position;
+          i = locateNode<Key>(node, key, this.comparator).position;
           locateKey = false;
         } else {
           i = node.keys.length - 1;
@@ -476,7 +474,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         if (node == null || done) break;
         let i = 0;
         if (locateKey && key != null) {
-          i = node.locate(key, this.comparator).position;
+          i = locateNode<Key>(node, key, this.comparator).position;
           locateKey = false;
         }
         while (i < node.keys.length) {
