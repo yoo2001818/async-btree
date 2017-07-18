@@ -110,4 +110,34 @@ export default function test(getTree: () => Tree<number, number>) {
       }
     });
   });
+  describe('#reverseIteratorKeys', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 10; ++i) await btree.insert(i, 0);
+    });
+    it('should traverse the tree in-order', async () => {
+      expect(await spreadAsyncIterable(btree.reverseIteratorKeys()))
+        .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0]);
+    });
+    it('should traverse the tree from specified point', async () => {
+      for (let i = 0; i < 10; ++i) {
+        expect(await spreadAsyncIterable(btree.reverseIteratorKeys(i)))
+          .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0].slice(9 - i));
+      }
+    });
+  });
+  describe('#iteratorKeys', () => {
+    beforeEach(async () => {
+      for (let i = 0; i < 10; ++i) await btree.insert(i, 0);
+    });
+    it('should traverse the tree in-order', async () => {
+      expect(await spreadAsyncIterable(btree.iteratorKeys()))
+        .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    });
+    it('should traverse the tree from specified point', async () => {
+      for (let i = 0; i < 10; ++i) {
+        expect(await spreadAsyncIterable(btree.iteratorKeys(i)))
+          .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].slice(i));
+      }
+    });
+  });
 }
