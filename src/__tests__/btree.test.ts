@@ -1,3 +1,5 @@
+import 'core-js/modules/es7.symbol.async-iterator';
+
 import BTree from '../btree';
 import Node, { N } from '../node';
 import spreadAsyncIterable from '../util/spreadAsyncIterable';
@@ -31,7 +33,7 @@ describe('BTree', () => {
         N([8], [N([6, 7]), N([9])]),
       ]);
     });
-    it('should traverse the tree in-order', async() => {
+    it('should traverse the tree in-order', async () => {
       expect(await spreadAsyncIterable(btree.reverseIterator()))
         .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1]);
     });
@@ -45,7 +47,7 @@ describe('BTree', () => {
         N([8], [N([6, 7]), N([9])]),
       ]);
     });
-    it('should traverse the tree in-order', async() => {
+    it('should traverse the tree in-order', async () => {
       expect(await spreadAsyncIterable(btree))
         .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     });
@@ -59,7 +61,7 @@ describe('BTree', () => {
         N([8], [N([6, 7]), N([9])]),
       ]);
     });
-    it('should traverse the tree in-order', async() => {
+    it('should traverse the tree in-order', async () => {
       let i = 0;
       await btree.traverse((v: number) => {
         i++;

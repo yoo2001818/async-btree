@@ -26,7 +26,7 @@ export default class MemoryIO {
     return Promise.resolve();
   }
   allocate(node: any) {
-    let id = this.size++;
+    const id = this.size++;
     return Promise.resolve(id);
   }
   readData(id: number) {
@@ -41,7 +41,7 @@ export default class MemoryIO {
     return Promise.resolve();
   }
   allocateData(data: any) {
-    let id = this.size++;
+    const id = this.size++;
     return Promise.resolve(id);
   }
 }

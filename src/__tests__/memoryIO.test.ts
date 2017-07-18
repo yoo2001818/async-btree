@@ -1,3 +1,5 @@
+import 'core-js/modules/es7.symbol.async-iterator';
+
 import BTree from '../btree';
 import MemoryIO from '../memoryIO';
 import test from './tree.test.common';

@@ -18,13 +18,13 @@ export class LocateResult {
 export function locateNode<Id, Key>(
   node: Node<Id, Key>,
   key: Key,
-  comparator: Comparator<Key>
+  comparator: Comparator<Key>,
 ): LocateResult {
   let high = node.keys.length - 1;
   let low = 0;
   do {
-    let mid = (high + low) >> 1;
-    let compared = comparator(node.keys[mid], key);
+    const mid = (high + low) >> 1;
+    const compared = comparator(node.keys[mid], key);
     if (compared === 0) {
       return new LocateResult(mid, true);
     } else if (compared < 0) {
@@ -36,7 +36,7 @@ export function locateNode<Id, Key>(
   return new LocateResult(low, false);
 }
 
-export function N<Id, Key>(keys: Key[], children?: Node<Id, Key>[]
+export function N<Id, Key>(keys: Key[], children?: Array<Node<Id, Key>>,
 ): Node<Id, Key> {
   if (children != null) {
     for (let i = 0; i < children.length; ++i) {
@@ -62,7 +62,7 @@ export default class Node<Id, Key> {
   right: any;
   leaf: boolean;
   constructor(id: any, size: number, keys: Key[], data: any[],
-    children: any[], leaf: boolean) {
+              children: any[], leaf: boolean) {
     this.id = id;
     this.size = size;
     this.keys = keys;

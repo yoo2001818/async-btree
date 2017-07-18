@@ -1,13 +1,13 @@
 export default async function spreadAsyncIterable<T>(
-  iterable: AsyncIterator<T> | AsyncIterable<T>
+  iterable: AsyncIterator<T> | AsyncIterable<T>,
 ): Promise<T[]> {
   let iterator: AsyncIterator<T>;
-  if ((<AsyncIterable<T>>iterable)[Symbol.asyncIterator]) {
-    iterator = (<AsyncIterable<T>>iterable)[Symbol.asyncIterator]();
+  if ((iterable as AsyncIterable<T>)[Symbol.asyncIterator]) {
+    iterator = (iterable as AsyncIterable<T>)[Symbol.asyncIterator]();
   } else {
-    iterator = <AsyncIterator<T>>iterable;
+    iterator = iterable as AsyncIterator<T>;
   }
-  let result = [];
+  const result = [];
   while (true) {
     const { value, done } = await iterator.next();
     if (done) break;

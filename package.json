@@ -4,17 +4,22 @@
   "description": "Async B-tree implementation for Javascript",
   "main": "lib/index.js",
   "scripts": {
-    "test": "npm run jest && npm run flow && npm run lint",
+    "test": "npm run jest && npm run build && npm run lint",
     "jest": "jest",
     "jestWatch": "jest --watch --notify",
-    "flow": "flow",
-    "lint": "eslint src/",
-    "build": "babel src -d lib --copy-files"
+    "lint": "tslint -c tslint.json 'src/**/*.ts'",
+    "build": "tsc -p tsconfig.json"
   },
   "jest": {
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js"
+    ],
     "transform": {
-      "^.+\\.jsx?$": "babel-jest"
-    }
+      "\\.(ts|tsx)$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    },
+    "testRegex": "/__tests__/.*\\.test\\.(ts|tsx|js)$"
   },
   "repository": {
     "type": "git",
@@ -39,6 +44,7 @@
     "babel-preset-env": "^1.6.0",
     "babel-preset-react": "^6.24.1",
     "babel-register": "^6.24.1",
+    "core-js": "^2.4.1",
     "eslint": "^4.2.0",
     "eslint-config-semistandard": "^11.0.0",
     "eslint-config-standard": "^10.2.1",
@@ -51,6 +57,9 @@
     "eslint-plugin-standard": "^3.0.1",
     "flow-bin": "^0.50.0",
     "jest": "^20.0.4",
-    "jest-cli": "^20.0.4"
+    "jest-cli": "^20.0.4",
+    "ts-jest": "^20.0.7",
+    "tslint": "^5.5.0",
+    "typescript": "^2.4.1"
   }
 }
