@@ -1,6 +1,6 @@
 {
   "name": "async-btree",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Async B-tree implementation for Javascript",
   "main": "lib/index.js",
   "scripts": {
@@ -31,10 +31,7 @@
     "url": "https://github.com/yoo2001818/btree-js/issues"
   },
   "homepage": "https://github.com/yoo2001818/btree-js#readme",
-  "dependencies": {
-    "bluebird": "^3.5.0",
-    "mz": "^2.6.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/jest": "^20.0.4",
     "babel-core": "^6.25.0",
