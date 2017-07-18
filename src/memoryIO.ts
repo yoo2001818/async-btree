@@ -1,4 +1,7 @@
 export default class MemoryIO {
+  size: number;
+  root: any;
+  data: any[];
   constructor() {
     this.size = 0;
     this.root = null;
@@ -7,37 +10,37 @@ export default class MemoryIO {
   getRoot() {
     return Promise.resolve(this.root);
   }
-  writeRoot(id) {
+  writeRoot(id: number) {
     this.root = id;
     return Promise.resolve(id);
   }
-  read(id) {
+  read(id: number) {
     return Promise.resolve(this.data[id]);
   }
-  write(id, node) {
+  write(id: number, node: any) {
     this.data[id] = node;
     return Promise.resolve(id);
   }
-  remove(id) {
+  remove(id: number) {
     this.data[id] = undefined;
     return Promise.resolve();
   }
-  allocate(node) {
+  allocate(node: any) {
     let id = this.size++;
     return Promise.resolve(id);
   }
-  readData(id) {
+  readData(id: number) {
     return Promise.resolve(this.data[id]);
   }
-  writeData(id, data) {
+  writeData(id: number, data: any) {
     this.data[id] = data;
     return Promise.resolve(id);
   }
-  removeData(id) {
+  removeData(id: number) {
     this.data[id] = undefined;
     return Promise.resolve();
   }
-  allocateData(data) {
+  allocateData(data: any) {
     let id = this.size++;
     return Promise.resolve(id);
   }

@@ -1,9 +1,8 @@
-// @flow
 // An implementation of PO-B+Tree.
 
 import BTree from './btree';
-import Node, { locateNode } from './node';
-import type { Tree } from './type';
+import Node, { locateNode, LocateResult } from './node';
+import { Tree } from './type';
 
 export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
   async insert(key: Key, data: Value): Promise<Tree<Key, Value>> {
@@ -51,10 +50,10 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         return this;
       } else {
         // If middle node, Find right offset and insert to there.
-        let result = locateNode(node, key, this.comparator);
+        let result: LocateResult = locateNode(node, key, this.comparator);
         if (result.exact) throw new Error('Duplicate key');
         let pos = result.position;
-        let child = await this.io.read(node.children[pos]);
+        let child: Node<any, Key> = await this.io.read(node.children[pos]);
         if (child.keys.length >= this.nodeSize * 2) {
           await this.split(node, pos);
           if (this.comparator(node.keys[pos], key) < 0) {
@@ -114,7 +113,9 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
             //    +----B----+
             //    A       C-D-E
             //   1 2     3 4 5 6
-            childNode.keys.unshift(leftNode.keys.pop());
+            let leftPop = leftNode.keys.pop();
+            if (leftPop == null) throw new Error('node is unexpectedly empty');
+            childNode.keys.unshift(leftPop);
             childNode.data.unshift(leftNode.data.pop());
             // Since same level of nodes are always same, we can just look for
             // leftNode's validity.
@@ -139,7 +140,9 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
             //    +----D----+
             //   A-C       D-E
             //  1 2 3     4 5 6
-            childNode.keys.push(rightNode.keys.shift());
+            let rightPop = rightNode.keys.shift();
+            if (rightPop == null) throw new Error('node is unexpectedly empty');
+            childNode.keys.push(rightPop);
             childNode.data.push(rightNode.data.shift());
             // Since same level of nodes are always same, we can just look for
             // rightNode's validity.
@@ -158,7 +161,9 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
           } else {
             // If both sibling nodes don't have insufficient keys, merge the
             // child node with one of the sibling node.
-            let mergeLeft, mergeRight, offset, siblingOffset;
+            let mergeLeft: Node<any, Key>;
+            let mergeRight: Node<any, Key>;
+            let offset, siblingOffset;
             if (leftNode) {
               mergeLeft = leftNode;
               mergeRight = childNode;
@@ -214,7 +219,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     // This'll never happen though
     return false;
   }
-  async get(key: Key): Promise<?Value> {
+  async get(key: Key): Promise<Value | null> {
     // Start from the root node, locate the key by descending into the value;
     let node = await this.readRoot();
     while (node != null) {
@@ -230,7 +235,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     // Failed!
     return null;
   }
-  async getNode(key: Key): Promise<?Node<Key>> {
+  async getNode(key: Key): Promise<Node<any, Key> | null> {
     let node = await this.readRoot();
     while (node != null && !node.leaf) {
       // Try to locate where to go.
@@ -239,7 +244,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     }
     return node;
   }
-  async split(node: Node<Key>, pos: number = 0): Promise<Node<Key>> {
+  async split(node: Node<any, Key>, pos: number = 0): Promise<Node<any, Key>> {
     // Split works by slicing the children and putting the splited nodes
     // in right place.
     // A---+---B
@@ -310,9 +315,9 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
   }
   // Note that iteratorNodes can't be implemented in B-Tree, due to its
   // in-order nature.
-  reverseIteratorNodes(key: ?Key) {
+  reverseIteratorNodes(key?: Key) {
     // Reversed version of asyncIterator.
-    return (async function * () { // eslint-disable-line no-extra-parens
+    return (async function * (this: BPlusTree<Key, Value>) {
       // If the key is provided, scan and locate the position;
       let node;
       if (key != null) {
@@ -334,14 +339,11 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  iteratorNodes(key: ?Key) {
+  iteratorNodes(key?: Key) {
     // Use IIFE to workaround the lack of class async functions.
     // However, there is no generator arrow functions, we need to workaround
     // around this object too.
-    // However again, eslint's error conflicts if we try to call 'call'
-    // with IIFE, so use eslint-disable-line to workaround this too.
-    // Why so complicated? It's not in the spec yet.
-    return (async function * () { // eslint-disable-line no-extra-parens
+    return (async function * (this: BPlusTree<Key, Value>) {
       let node;
       if (key != null) {
         node = await this.getNode(key);
@@ -364,8 +366,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     }).call(this);
   }
   // TODO Clean this mess up
-  reverseIteratorEntries(key: ?Key) {
-    return (async function * () { // eslint-disable-line no-extra-parens
+  reverseIteratorEntries(key?: Key) {
+    return (async function * (this: BPlusTree<Key, Value>) {
       let locateKey = key != null;
       const iterator = this.reverseIteratorNodes(key);
       while (true) {
@@ -385,8 +387,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  iteratorEntries(key: ?Key) {
-    return (async function * () { // eslint-disable-line no-extra-parens
+  iteratorEntries(key?: Key) {
+    return (async function * (this: BPlusTree<Key, Value>) {
       let locateKey = key != null;
       const iterator = this.iteratorNodes(key);
       while (true) {
@@ -404,14 +406,14 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  reverseIterator(key: ?Key): AsyncGenerator<Value, void, void> {
-    return (async function * () { // eslint-disable-line no-extra-parens
+  reverseIterator(key?: Key) {
+    return (async function * (this: BPlusTree<Key, Value>) {
       let locateKey = key != null;
       const iterator = this.reverseIteratorNodes(key);
       while (true) {
         const { value: node, done } = await iterator.next();
         if (node == null || done) break;
-        let getDatas = node.data.map(v => this.io.readData(v));
+        let getDatas = node.data.map((v: any) => this.io.readData(v));
         let i;
         if (locateKey && key != null) {
           i = locateNode(node, key, this.comparator).position;
@@ -426,14 +428,14 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  iterator(key: ?Key): AsyncGenerator<Value, void, void> {
-    return (async function * () { // eslint-disable-line no-extra-parens
+  iterator(key?: Key) {
+    return (async function * (this: BPlusTree<Key, Value>) {
       let locateKey = key != null;
       const iterator = this.iteratorNodes(key);
       while (true) {
         const { value: node, done } = await iterator.next();
         if (node == null || done) break;
-        let getDatas = node.data.map(v => this.io.readData(v));
+        let getDatas = node.data.map((v: any) => this.io.readData(v));
         let i = 0;
         if (locateKey && key != null) {
           i = locateNode(node, key, this.comparator).position;
@@ -446,8 +448,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  reverseIteratorKeys(key: ?Key) {
-    return (async function * () { // eslint-disable-line no-extra-parens
+  reverseIteratorKeys(key?: Key) {
+    return (async function * (this: BPlusTree<Key, Value>) {
       let locateKey = key != null;
       const iterator = this.reverseIteratorNodes(key);
       while (true) {
@@ -467,8 +469,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }).call(this);
   }
-  iteratorKeys(key: ?Key) {
-    return (async function * () { // eslint-disable-line no-extra-parens
+  iteratorKeys(key?: Key) {
+    return (async function * (this: BPlusTree<Key, Value>) {
       let locateKey = key != null;
       const iterator = this.iteratorNodes(key);
       while (true) {

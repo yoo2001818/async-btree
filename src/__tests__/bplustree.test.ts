@@ -1,11 +1,11 @@
-import BPlusTree from './bplustree';
-import { N } from './node';
-import spreadAsyncIterable from './util/spreadAsyncIterable';
+import BPlusTree from '../bplustree';
+import Node, { N } from '../node';
+import spreadAsyncIterable from '../util/spreadAsyncIterable';
 import test from './tree.test.common';
 
 describe('BPlusTree', () => {
   // Use direct I/O without using IDs for ease of debugging
-  let btree, rootNode;
+  let btree: BPlusTree<number, number>, rootNode: Node<any, number> | null;
   beforeEach(() => {
     btree = new BPlusTree({
       getRoot: () => Promise.resolve(rootNode),
@@ -61,7 +61,7 @@ describe('BPlusTree', () => {
     });
     it('should traverse the tree in-order', async() => {
       let i = 0;
-      await btree.traverse(v => {
+      await btree.traverse((v: number) => {
         i++;
         expect(v).toBe(i);
       });

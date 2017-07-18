@@ -15,8 +15,8 @@ export class LocateResult {
   }
 }
 
-export function locateNode<Key>(
-  node: Node<Key>,
+export function locateNode<Id, Key>(
+  node: Node<Id, Key>,
   key: Key,
   comparator: Comparator<Key>
 ): LocateResult {
@@ -36,7 +36,8 @@ export function locateNode<Key>(
   return new LocateResult(low, false);
 }
 
-export function N<Key>(keys: Key[], children: ?Node<Key>[]): Node<Key> {
+export function N<Id, Key>(keys: Key[], children?: Node<Id, Key>[]
+): Node<Id, Key> {
   if (children != null) {
     for (let i = 0; i < children.length; ++i) {
       children[i].left = children[i - 1];
@@ -47,15 +48,15 @@ export function N<Key>(keys: Key[], children: ?Node<Key>[]): Node<Key> {
     children == null);
 }
 
-export default class Node<Key> {
+export default class Node<Id, Key> {
   // The address of node itself.
-  id: any;
+  id: Id;
   size: number;
   keys: Key[];
-  data: any[];
+  data: Id[];
   // Childrens usually store filesystem's key - however - direct values can
   // be stored too. IOInterface should handle this then.
-  children: any[];
+  children: Id[];
   // Stores left - right relation for B+Tree.
   left: any;
   right: any;

@@ -31,6 +31,7 @@
     "mz": "^2.6.0"
   },
   "devDependencies": {
+    "@types/jest": "^20.0.4",
     "babel-core": "^6.25.0",
     "babel-eslint": "^7.2.3",
     "babel-jest": "^20.0.3",

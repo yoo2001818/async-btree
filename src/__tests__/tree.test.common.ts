@@ -1,7 +1,8 @@
-import spreadAsyncIterable from './util/spreadAsyncIterable';
+import spreadAsyncIterable from '../util/spreadAsyncIterable';
+import { Tree } from '../type';
 
-export default function test(getTree) {
-  let btree;
+export default function test(getTree: () => Tree<number, number>) {
+  let btree: Tree<number, number>;
   beforeEach(() => {
     btree = getTree();
   });
@@ -14,7 +15,7 @@ export default function test(getTree) {
       expect(await spreadAsyncIterable(btree)).toEqual([1]);
     });
     it('should sort randomized array to 0..99', async() => {
-      let arr = [];
+      let arr: number[] = [];
       let answer;
       for (let i = 0; i < 100; ++i) {
         arr.push(i);
@@ -61,9 +62,6 @@ export default function test(getTree) {
     it('should return null for invalid values', async() => {
       expect(await btree.get(50.5)).toBe(null);
       expect(await btree.get(-33)).toBe(null);
-      // null returns 0, however, since this is comparator function's problem,
-      // that's completely valid.
-      expect(await btree.get(undefined)).toBe(null);
     });
   });
   describe('#smallest', () => {
