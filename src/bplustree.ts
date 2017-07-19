@@ -5,7 +5,9 @@ import Node, { locateNode, LocateResult } from './node';
 import { Tree } from './type';
 
 export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
-  async insert(key: Key, data: Value): Promise<Tree<Key, Value>> {
+  async insert(
+    key: Key, data: Value, overwrite?: boolean,
+  ): Promise<Tree<Key, Value>> {
     let node = await this.readRoot();
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
@@ -35,10 +37,18 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         // TODO PO-B+-Tree specifies that the split should be invoked
         // **whenever** a 2n or 2n + 1 key node is encountered, including leaf
         // node.
+        // First, locate where the node should be.
+        const result: LocateResult = locateNode(node, key, this.comparator);
+        const pos = result.position;
+        if (result.exact) {
+          if (!overwrite) throw new Error('Duplicate key');
+          node.data[pos] = await this.io.writeData(node.data[pos], data);
+          await this.io.write(node.id, node);
+          return this;
+        }
+        // Then, shift the array until there.
         let i;
-        for (i = node.keys.length;
-          i >= 1 && this.comparator(node.keys[i - 1], key) > 0; --i
-        ) {
+        for (i = node.keys.length; i > pos; --i) {
           node.keys[i] = node.keys[i - 1];
           node.data[i] = node.data[i - 1];
         }
@@ -51,12 +61,15 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       } else {
         // If middle node, Find right offset and insert to there.
         const result: LocateResult = locateNode(node, key, this.comparator);
-        if (result.exact) throw new Error('Duplicate key');
-        const pos = result.position;
+        let pos = result.position;
+        if (result.exact) {
+          if (!overwrite) throw new Error('Duplicate key');
+          pos += 1;
+        }
         let child: Node<any, Key> = await this.io.read(node.children[pos]);
         if (child.keys.length >= this.nodeSize * 2) {
           await this.split(node, pos);
-          if (this.comparator(node.keys[pos], key) < 0) {
+          if (this.comparator(node.keys[pos], key) <= 0) {
             child = await this.io.read(node.children[pos + 1]);
           }
         }
@@ -126,7 +139,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
               if (childrenAdd != null) childNode.children.unshift(childrenAdd);
             }
             node.keys[position] = leftNode.keys[leftNode.keys.length];
-            node.data[position] = leftNode.data[leftNode.keys.length];
+            // node.data[position] = leftNode.data[leftNode.keys.length];
+            node.data[position] = null;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
@@ -153,7 +167,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
               if (childrenAdd != null) childNode.children.push(childrenAdd);
             }
             node.keys[position] = rightNode.keys[0];
-            node.data[position] = rightNode.data[0];
+            // node.data[position] = rightNode.data[0];
+            node.data[position] = null;
             // Save all of them.
             await Promise.all([
               this.io.write(node.id, node),
@@ -306,7 +321,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     // Save the left / right node.
     node.children[pos + 1] = right.id;
     node.keys[pos] = center;
-    node.data[pos] = centerData;
+    node.data[pos] = null;
+    // node.data[pos] = centerData;
     node.leaf = false;
     await Promise.all([
       this.io.write(right.id, right),

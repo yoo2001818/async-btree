@@ -29,7 +29,10 @@ export default function test(getTree: () => Tree<number, number>) {
         arr[i] = tmp;
       }
       for (let i = 0; i < 100; ++i) {
-        expect(await btree.insert(arr[i], arr[i])).toBe(btree);
+        expect(await btree.insert(arr[i], arr[i] - 1)).toBe(btree);
+      }
+      for (let i = 0; i < 100; ++i) {
+        expect(await btree.insert(arr[i], arr[i], true)).toBe(btree);
       }
       expect(await spreadAsyncIterable(btree)).toEqual(answer);
     });

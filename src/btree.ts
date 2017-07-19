@@ -22,7 +22,9 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     if (id == null) return null;
     return await this.io.read(id);
   }
-  async insert(key: Key, data: Value): Promise<Tree<Key, Value>> {
+  async insert(
+    key: Key, data: Value, overwrite?: boolean,
+  ): Promise<Tree<Key, Value>> {
     let node = await this.readRoot();
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
@@ -47,10 +49,18 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       if (node.leaf) {
         // If leaf node, put the key in the right place, while pushing the other
         // ones.
+        // First, locate where the node should be.
+        const result: LocateResult = locateNode(node, key, this.comparator);
+        const pos = result.position;
+        if (result.exact) {
+          if (!overwrite) throw new Error('Duplicate key');
+          node.data[pos] = await this.io.writeData(node.data[pos], data);
+          await this.io.write(node.id, node);
+          return this;
+        }
+        // Then, shift the array until there.
         let i;
-        for (i = node.keys.length;
-          i >= 1 && this.comparator(node.keys[i - 1], key) > 0; --i
-        ) {
+        for (i = node.keys.length; i > pos; --i) {
           node.keys[i] = node.keys[i - 1];
           node.data[i] = node.data[i - 1];
         }
@@ -63,12 +73,23 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       } else {
         // If middle node, Find right offset and insert to there.
         const result: LocateResult = locateNode(node, key, this.comparator);
-        if (result.exact) throw new Error('Duplicate key');
         const pos = result.position;
+        if (result.exact) {
+          if (!overwrite) throw new Error('Duplicate key');
+          node.data[pos] = await this.io.writeData(node.data[pos], data);
+          await this.io.write(node.id, node);
+          return this;
+        }
         let child: Node<any, Key> = await this.io.read(node.children[pos]);
         if (child.keys.length === this.nodeSize * 2 - 1) {
           await this.split(node, pos);
-          if (this.comparator(node.keys[pos], key) < 0) {
+          const compResult = this.comparator(node.keys[pos], key);
+          if (compResult === 0) {
+            if (!overwrite) throw new Error('Duplicate key');
+            node.data[pos] = await this.io.writeData(node.data[pos], data);
+            await this.io.write(node.id, node);
+            return this;
+          } else if (compResult < 0) {
             child = await this.io.read(node.children[pos + 1]);
           }
         }
@@ -583,5 +604,34 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       if (done) break;
       callback(value);
     }
+  }
+  async nodeToString(root?: Node<any, Key>): Promise<string> {
+    const output: string[] = [];
+    // If a key is provided, we need to traverse to the node where the key is
+    // located while reconstructing the stack.
+    // Sounds quite complicated...
+    const rootNode = root || await this.readRoot();
+    const stack: Array<[Node<any, Key>, number]> = [];
+    if (rootNode != null) stack.push([rootNode, 0]);
+    while (stack.length > 0) {
+      const stackEntry = stack[stack.length - 1];
+      const node = stackEntry[0];
+      const pos = stackEntry[1]++;
+      if (pos > node.keys.length) {
+        stack.pop();
+        continue;
+      }
+      if (pos !== 0) {
+        output.push(stack.map(() => '').join('| ') + node.keys[pos - 1]);
+      }
+      // Step into descending node...
+      if (!node.leaf && node.children[pos] != null) {
+        stack.push([
+          await this.io.read(node.children[pos]),
+          0,
+        ]);
+      }
+    }
+    return output.join('\n');
   }
 }
