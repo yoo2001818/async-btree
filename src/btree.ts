@@ -24,7 +24,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
   }
   async insert(
     key: Key, data: Value, overwrite?: boolean,
-  ): Promise<Tree<Key, Value>> {
+  ): Promise<Value | null> {
     let node = await this.readRoot();
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
@@ -35,7 +35,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       node.data[0] = await this.io.writeData(dataId, data);
       await this.io.write(node.id, node);
       await this.io.writeRoot(node.id);
-      return this;
+      return null;
     }
     if (node.keys.length >= this.nodeSize * 2 - 1) {
       // Create new root node then separate it.
@@ -54,9 +54,10 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         const pos = result.position;
         if (result.exact) {
           if (!overwrite) throw new Error('Duplicate key');
+          const beforeData: Value = await this.io.readData(node.data[pos]);
           node.data[pos] = await this.io.writeData(node.data[pos], data);
           await this.io.write(node.id, node);
-          return this;
+          return beforeData;
         }
         // Then, shift the array until there.
         let i;
@@ -69,16 +70,17 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         node.data[i] = await this.io.writeData(dataId, data);
         await this.io.write(node.id, node);
         // We're done here.
-        return this;
+        return null;
       } else {
         // If middle node, Find right offset and insert to there.
         const result: LocateResult = locateNode(node, key, this.comparator);
         const pos = result.position;
         if (result.exact) {
           if (!overwrite) throw new Error('Duplicate key');
+          const beforeData: Value = await this.io.readData(node.data[pos]);
           node.data[pos] = await this.io.writeData(node.data[pos], data);
           await this.io.write(node.id, node);
-          return this;
+          return beforeData;
         }
         let child: Node<any, Key> = await this.io.read(node.children[pos]);
         if (child.keys.length === this.nodeSize * 2 - 1) {
@@ -86,9 +88,10 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           const compResult = this.comparator(node.keys[pos], key);
           if (compResult === 0) {
             if (!overwrite) throw new Error('Duplicate key');
+            const beforeData: Value = await this.io.readData(node.data[pos]);
             node.data[pos] = await this.io.writeData(node.data[pos], data);
             await this.io.write(node.id, node);
-            return this;
+            return beforeData;
           } else if (compResult < 0) {
             child = await this.io.read(node.children[pos + 1]);
           }
@@ -97,7 +100,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         node = child;
       }
     }
-    return this;
+    return null;
   }
   async remove(key: Key): Promise<boolean> {
     // Start from the root node, remove entries to match B-Tree criteria.

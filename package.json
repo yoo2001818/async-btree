@@ -1,6 +1,6 @@
 {
   "name": "async-btree",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Async B-tree implementation for Javascript",
   "main": "lib/index.js",
   "scripts": {

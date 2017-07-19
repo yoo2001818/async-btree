@@ -7,11 +7,11 @@ export default function test(getTree: () => Tree<number, number>) {
     btree = getTree();
   });
   describe('#insert', () => {
-    it('should return itself', async () => {
-      expect(await btree.insert(1, 1)).toBe(btree);
+    it('should return null', async () => {
+      expect(await btree.insert(1, 1)).toBe(null);
     });
     it('should work on empty root', async () => {
-      expect(await btree.insert(1, 1)).toBe(btree);
+      expect(await btree.insert(1, 1)).toBe(null);
       expect(await spreadAsyncIterable(btree)).toEqual([1]);
     });
     it('should sort randomized array to 0..99', async () => {
@@ -29,10 +29,10 @@ export default function test(getTree: () => Tree<number, number>) {
         arr[i] = tmp;
       }
       for (let i = 0; i < 100; ++i) {
-        expect(await btree.insert(arr[i], arr[i] - 1)).toBe(btree);
+        expect(await btree.insert(arr[i], arr[i] - 1)).toBe(null);
       }
       for (let i = 0; i < 100; ++i) {
-        expect(await btree.insert(arr[i], arr[i], true)).toBe(btree);
+        expect(await btree.insert(arr[i], arr[i], true)).toBe(arr[i] - 1);
       }
       expect(await spreadAsyncIterable(btree)).toEqual(answer);
     });

@@ -7,7 +7,7 @@ import { Tree } from './type';
 export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
   async insert(
     key: Key, data: Value, overwrite?: boolean,
-  ): Promise<Tree<Key, Value>> {
+  ): Promise<Value | null> {
     let node = await this.readRoot();
     if (node == null) {
       // Create root node. If this is the case, just put data into the root
@@ -18,7 +18,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       node.data[0] = await this.io.writeData(dataId, data);
       await this.io.write(node.id, node);
       await this.io.writeRoot(node.id);
-      return this;
+      return null;
     }
     // PO-insert. Unlike B-Tree, it checks for 2n or 2n + 1 keys instead of
     // 2n - 1 or 2n keys.
@@ -42,9 +42,10 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         const pos = result.position;
         if (result.exact) {
           if (!overwrite) throw new Error('Duplicate key');
+          const beforeData: Value = await this.io.readData(node.data[pos]);
           node.data[pos] = await this.io.writeData(node.data[pos], data);
           await this.io.write(node.id, node);
-          return this;
+          return beforeData;
         }
         // Then, shift the array until there.
         let i;
@@ -57,7 +58,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         node.data[i] = await this.io.writeData(dataId, data);
         await this.io.write(node.id, node);
         // We're done here.
-        return this;
+        return null;
       } else {
         // If middle node, Find right offset and insert to there.
         const result: LocateResult = locateNode(node, key, this.comparator);
@@ -77,7 +78,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         node = child;
       }
     }
-    return this;
+    return null;
   }
   async remove(key: Key): Promise<boolean> {
     let node = await this.readRoot();
