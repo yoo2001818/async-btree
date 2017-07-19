@@ -102,7 +102,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
     return null;
   }
-  async remove(key: Key): Promise<boolean> {
+  async remove(key: Key): Promise<Value | null> {
     // Start from the root node, remove entries to match B-Tree criteria.
     let node = await this.readRoot();
     while (node != null) {
@@ -114,7 +114,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         // node doesn't have it - we have to make it have `nodeSize` keys by
         // merging two nodes.
         // Fail if the node is leaf node.
-        if (node.leaf) return false;
+        if (node.leaf) return null;
         const childNode = await this.io.read(node.children[position]);
         if (childNode.keys.length < this.nodeSize) {
           const [leftNode, rightNode] = await Promise.all([
@@ -202,6 +202,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             });
             // Remove mergeRight from disk.
             node.keys.splice(position + offset, 1);
+            node.data.splice(position + offset, 1);
             node.children.splice(position + siblingOffset, 1);
             // If no key is left in current node, it means that root node
             // is now obsolete; shift the root node.
@@ -226,6 +227,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
         node = childNode;
         continue;
       } else {
+        let prevData;
         // Exact match was found
         if (node.leaf) {
           // If this is a leaf node, we can safely remove it from the keys.
@@ -233,10 +235,11 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           const dataId = node.data[position];
           node.keys.splice(position, 1);
           node.data.splice(position, 1);
-          await Promise.all([
+          [prevData] = await Promise.all([
+            this.io.readData(dataId),
             this.io.write(node.id, node),
-            this.io.removeData(dataId),
           ]);
+          await this.io.removeData(dataId);
         } else {
           // Otherwise, it's a little complicated...
           // Search for sibling node with at least `size` keys, and steal
@@ -260,11 +263,12 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             if (biggest == null) throw new Error('node is unexpectedly empty');
             node.keys[position] = biggest;
             node.data[position] = biggestData;
-            await Promise.all([
+            [prevData] = await Promise.all([
+              this.io.readData(dataId),
               this.io.write(biggestNode.id, biggestNode),
               this.io.write(node.id, node),
-              this.io.removeData(dataId),
             ]);
+            await this.io.removeData(dataId);
           } else if (rightNode != null && rightNode.keys.length >= this.nodeSize
           ) {
             // Steal smallest node in the right node.
@@ -279,11 +283,12 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             if (smallest == null) throw new Error('node is unexpectedly empty');
             node.keys[position] = smallest;
             node.data[position] = smallestData;
-            await Promise.all([
+            [prevData] = await Promise.all([
+              this.io.readData(dataId),
               this.io.write(smallestNode.id, smallestNode),
               this.io.write(node.id, node),
-              this.io.removeData(dataId),
             ]);
+            await this.io.removeData(dataId);
           } else if (leftNode != null && rightNode != null) {
             // Merge left and right node.
             const prevSize = leftNode.keys.length;
@@ -297,20 +302,21 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
             node.data.splice(position, 1);
             node.children.splice(position, 1);
             // Save to disk, while removing right node.
-            await Promise.all([
+            [prevData] = await Promise.all([
+              this.io.readData(dataId),
               this.io.write(node.id, node),
               this.io.write(leftNode.id, leftNode),
               this.io.remove(rightNode.id),
-              this.io.removeData(dataId),
             ]);
+            await this.io.removeData(dataId);
           } else {
             throw new Error('Left and right node is missing while removing');
           }
         }
-        return true;
+        return prevData;
       }
     }
-    return false;
+    return null;
   }
   async get(key: Key): Promise<Value | null> {
     // Start from the root node, locate the key by descending into the value;

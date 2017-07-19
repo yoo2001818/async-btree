@@ -80,7 +80,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     }
     return null;
   }
-  async remove(key: Key): Promise<boolean> {
+  async remove(key: Key): Promise<Value | null> {
     let node = await this.readRoot();
     // No more than N keys and son of the root of one key:
     //  Other son of the root has more than n keys:
@@ -99,17 +99,18 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       const { exact } = located;
       let { position } = located;
       if (node.leaf) {
-        if (!exact) return false;
+        if (!exact) return null;
         // If this is a leaf node, we can safely remove it from the keys.
         // The end.
         const dataId = node.data[position];
         node.keys.splice(position, 1);
         node.data.splice(position, 1);
-        await Promise.all([
+        const [prevData] = await Promise.all([
+          this.io.readData(dataId),
           this.io.write(node.id, node),
-          this.io.removeData(dataId),
         ]);
-        return true;
+        await this.io.removeData(dataId);
+        return prevData;
       } else {
         // Locate the children...
         if (exact) position += 1;
@@ -235,7 +236,7 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       }
     }
     // This'll never happen though
-    return false;
+    return null;
   }
   async get(key: Key): Promise<Value | null> {
     // Start from the root node, locate the key by descending into the value;

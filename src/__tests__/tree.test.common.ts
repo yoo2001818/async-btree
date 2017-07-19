@@ -41,14 +41,14 @@ export default function test(getTree: () => Tree<number, number>) {
     it('should remove node 0 to 9', async () => {
       for (let i = 0; i < 10; ++i) await btree.insert(i, i);
       for (let i = 0; i < 9; ++i) {
-        expect(await btree.remove(i)).toBe(true);
+        expect(await btree.remove(i)).toBe(i);
       }
       expect(await spreadAsyncIterable(btree)).toEqual([9]);
     });
-    it('should return false if failed to find node', async () => {
+    it('should return null if failed to find node', async () => {
       for (let i = 0; i < 10; ++i) await btree.insert(i, i);
-      expect(await btree.remove(53)).toBe(false);
-      expect(await btree.remove(-49)).toBe(false);
+      expect(await btree.remove(53)).toBe(null);
+      expect(await btree.remove(-49)).toBe(null);
     });
   });
   describe('#get', () => {

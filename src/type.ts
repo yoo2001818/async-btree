@@ -20,7 +20,7 @@ export interface IOInterface<Id, Key, Value> {
 export interface Tree<Key, Value> extends AsyncIterable<Value> {
   readRoot(): Promise<Node<any, Key> | null>;
   insert(key: Key, data: Value, overwrite?: boolean): Promise<Value | null>;
-  remove(key: Key): Promise<boolean>;
+  remove(key: Key): Promise<Value | null>;
   get(key: Key): Promise<Value | null>;
   split(node: Node<any, Key>, pos: number): Promise<Node<any, Key>>;
   smallestNode(topNode?: Node<any, Key>): Promise<Node<any, Key> | null>;
