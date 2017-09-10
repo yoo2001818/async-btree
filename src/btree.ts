@@ -425,8 +425,12 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           // Try to locate where to go.
           const { position, exact } =
             locateNode(rootNode, key, this.comparator);
-          if (exact || rootNode.leaf) {
-            stack.push([rootNode, position]);
+          if (rootNode.leaf || exact) {
+            if (!exact && position !== 0) {
+              stack.push([rootNode, position - 1]);
+            } else if (exact) {
+              stack.push([rootNode, position]);
+            }
             break;
           } else {
             if (position !== 0) {
@@ -483,7 +487,8 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           // Try to locate where to go.
           const { position, exact } =
             locateNode(rootNode, key, this.comparator);
-          if (exact || rootNode.leaf) {
+          if (rootNode.leaf || exact) {
+            if (!exact && position >= rootNode.keys.length) break;
             stack.push([rootNode, position + 1]);
             break;
           } else {

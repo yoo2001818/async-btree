@@ -99,13 +99,7 @@ export default function test(getTree: () => Tree<number, number>) {
     });
     it('should start iterating right next to specified', async () => {
       for (let i = 0; i < 10; ++i) {
-        expect(await spreadAsyncIterable(btree.reverseIterator(i - 0.5)))
-          .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0].slice(9 - i - 1));
-      }
-    });
-    it('should start iterating right before if specified', async () => {
-      for (let i = 0; i < 10; ++i) {
-        expect(await spreadAsyncIterable(btree.reverseIterator(i - 0.5)))
+        expect(await spreadAsyncIterable(btree.reverseIterator(i + 0.5)))
           .toEqual([9, 8, 7, 6, 5, 4, 3, 2, 1, 0].slice(9 - i));
       }
     });
@@ -128,12 +122,6 @@ export default function test(getTree: () => Tree<number, number>) {
       for (let i = 0; i < 10; ++i) {
         expect(await spreadAsyncIterable(btree.iterator(i + 0.5)))
           .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].slice(i + 1));
-      }
-    });
-    it('should start iterating right before if specified', async () => {
-      for (let i = 0; i < 10; ++i) {
-        expect(await spreadAsyncIterable(btree.iterator(i + 0.5)))
-          .toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].slice(i));
       }
     });
   });
