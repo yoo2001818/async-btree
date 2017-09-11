@@ -395,7 +395,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         if (node == null || done) break;
         let i;
         if (locateKey && key != null) {
-          i = locateNode(node, key, this.comparator).position;
+          const { position, exact } = locateNode(node, key, this.comparator);
+          i = position - (exact ? 0 : 1);
           locateKey = false;
         } else {
           i = node.keys.length - 1;
@@ -436,7 +437,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         const getDatas = node.data.map((v: any) => this.io.readData(v));
         let i;
         if (locateKey && key != null) {
-          i = locateNode(node, key, this.comparator).position;
+          const { position, exact } = locateNode(node, key, this.comparator);
+          i = position - (exact ? 0 : 1);
           locateKey = false;
         } else {
           i = getDatas.length - 1;
@@ -477,7 +479,8 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
         if (node == null || done) break;
         let i;
         if (locateKey && key != null) {
-          i = locateNode(node, key, this.comparator).position;
+          const { position, exact } = locateNode(node, key, this.comparator);
+          i = position - (exact ? 0 : 1);
           locateKey = false;
         } else {
           i = node.keys.length - 1;
