@@ -318,7 +318,9 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
     }
     return null;
   }
-  async get(key: Key): Promise<Value | null> {
+  async get(
+    key: Key, nearest?: boolean, reverse?: boolean,
+  ): Promise<Value | null> {
     // Start from the root node, locate the key by descending into the value;
     let node = await this.readRoot();
     while (node != null) {
@@ -327,7 +329,14 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       if (exact) return this.io.readData(node.data[position]);
       // If not matched, go down to right child
       // But this fails in leaf node, so just mark it as a failure
-      if (node.leaf) return null;
+      if (node.leaf) {
+        if (nearest && node.size > position) {
+          // TODO If the position is out of range, we need to go up one level
+          // and return the parent instead.
+          return this.io.readData(node.data[position]);
+        }
+        return null;
+      }
       node = await this.io.read(node.children[position]);
     }
     // Failed!
