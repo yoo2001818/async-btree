@@ -238,7 +238,9 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
     // This'll never happen though
     return null;
   }
-  async get(key: Key): Promise<Value | null> {
+  async get(
+    key: Key, nearest?: boolean, reverse?: boolean,
+  ): Promise<Value | null> {
     // Start from the root node, locate the key by descending into the value;
     let node = await this.readRoot();
     while (node != null) {
@@ -246,7 +248,19 @@ export default class BPlusTree<Key, Value> extends BTree<Key, Value> {
       const { position, exact } = locateNode(node, key, this.comparator);
       if (node.leaf) {
         if (exact) return this.io.readData(node.data[position]);
-        else return null;
+        if (!nearest) return null;
+        // This should be far more easier than B-Tree - Get next node if not
+        // available.
+        let nearPos = position;
+        if (reverse && nearPos <= 0) {
+          node = await this.io.read(node.left);
+          nearPos = node.keys.length;
+        } else if (!reverse && nearPos >= node.keys.length) {
+          node = await this.io.read(node.right);
+          nearPos = 0;
+        }
+        // console.log(node.keys, key, nearPos);
+        return this.io.readData(node.data[nearPos - (reverse ? 1 : 0)]);
       } else {
         node = await this.io.read(node.children[position + (exact ? 1 : 0)]);
       }

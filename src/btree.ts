@@ -323,10 +323,7 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
   ): Promise<Value | null> {
     // Start from the root node, locate the key by descending into the value;
     let node = await this.readRoot();
-    let stack;
-    if (nearest) {
-      stack = [];
-    }
+    const stack = [];
     while (node != null) {
       // Try to locate where to go.
       const { position, exact } = locateNode(node, key, this.comparator);
@@ -339,17 +336,19 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
           // parent's values are larger than the provided key...
           // Hopefully, we only have to go up, so we don't have to read other
           // nodes.
-          while (stack.length > 0 && (!reverse ? position >= node.data.length
-            : position <= 0)) {
+          let posNear = position;
+          while (stack.length > 0 && (!reverse ? posNear >= node.data.length
+            : posNear <= 0)) {
             const popped = stack.pop();
-            position = popped.position;
+            if (popped == null) return null;
+            posNear = popped.position;
             node = popped.node;
           }
-          if (!reverse && position < node.data.length) {
-            return this.io.readData(node.data[position]);
+          if (!reverse && posNear < node.data.length) {
+            return this.io.readData(node.data[posNear]);
           }
-          if (reverse && position > 0) {
-            return this.io.readData(node.data[position - 1]);
+          if (reverse && posNear > 0) {
+            return this.io.readData(node.data[posNear - 1]);
           }
         }
         return null;
