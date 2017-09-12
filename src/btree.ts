@@ -323,6 +323,10 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
   ): Promise<Value | null> {
     // Start from the root node, locate the key by descending into the value;
     let node = await this.readRoot();
+    let stack;
+    if (nearest) {
+      stack = [];
+    }
     while (node != null) {
       // Try to locate where to go.
       const { position, exact } = locateNode(node, key, this.comparator);
@@ -330,12 +334,30 @@ export default class BTree<Key, Value> implements Tree<Key, Value> {
       // If not matched, go down to right child
       // But this fails in leaf node, so just mark it as a failure
       if (node.leaf) {
-        if (nearest && node.size > position) {
-          // TODO If the position is out of range, we need to go up one level
-          // and return the parent instead.
-          return this.io.readData(node.data[position]);
+        if (nearest) {
+          // If the position is out of range, we need to go up until
+          // parent's values are larger than the provided key...
+          // Hopefully, we only have to go up, so we don't have to read other
+          // nodes.
+          while (stack.length > 0 && (!reverse ? position >= node.data.length
+            : position <= 0)) {
+            const popped = stack.pop();
+            position = popped.position;
+            node = popped.node;
+          }
+          if (!reverse && position < node.data.length) {
+            return this.io.readData(node.data[position]);
+          }
+          if (reverse && position > 0) {
+            return this.io.readData(node.data[position - 1]);
+          }
         }
         return null;
+      }
+      if (nearest) {
+        // Save current position and node, since that's necessary get next
+        // value, unlike B+Tree.
+        stack.push({ node, position });
       }
       node = await this.io.read(node.children[position]);
     }

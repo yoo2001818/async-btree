@@ -67,7 +67,7 @@ export default function test(getTree: () => Tree<number, number>) {
         expect(await btree.get(i - 0.5, true)).toBe(i + 31);
       }
     });
-    it('should return next nearest next value if specified', async () => {
+    it('should return previous nearest value if specified', async () => {
       for (let i = 0; i < 100; ++i) {
         expect(await btree.get(i + 0.5, true, true)).toBe(i + 31);
       }
